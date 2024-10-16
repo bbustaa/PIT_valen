@@ -13,14 +13,26 @@ import {
   IonToast,
   IonAlert
 } from '@ionic/react';
-import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, googleProvider } from './firebaseConfig';
-import { logoGoogle } from 'ionicons/icons'; 
-import { useHistory } from 'react-router-dom'; 
-import axios from 'axios'; // Usamos axios para hacer las peticiones al servidor
+import { logoGoogle } from 'ionicons/icons';
+import { useHistory } from 'react-router-dom';
+import axios from 'axios';
+
+interface LoginResponse {
+  message: string;
+  user: {
+    id: number;
+    email: string;
+    nombre: string;
+    apellido1: string;
+    apellido2: string;
+    direccion: string;
+  };
+}
 
 const Login: React.FC = () => {
-  const history = useHistory(); 
+  const history = useHistory();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showToast, setShowToast] = useState(false);
@@ -31,43 +43,86 @@ const Login: React.FC = () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-
-      // Ahora guardamos el usuario en la base de datos usando una API (servidor Node.js)
+  
+      // Verificamos que el email está disponible
+      if (!user.email) {
+        throw new Error('No se pudo obtener el correo electrónico de la cuenta de Google.');
+      }
+  
+      // Creamos un objeto con la información obtenida de Google
       const userData = {
-        email: user.email!,
-        nombre: user.displayName || '',
-        apellido1: '',
-        apellido2: '',
-        direccion: '',
-        foto: user.photoURL || ''
+        email: user.email
       };
-      
-      // Hacemos la solicitud al servidor para guardar el usuario en MySQL
-      await axios.post('http://localhost:5000/register-google', userData);
-      
-      history.push('/completar-perfil');
-    } catch (error) {
-      console.error('Error al iniciar sesión con Google:', error);
-      setToastMessage('Error al iniciar sesión con Google.');
-      setShowToast(true);
+  
+      // Enviamos esta información al servidor
+      const response = await axios.post<LoginResponse>('http://localhost:5000/register-google', userData);
+  
+      // Si el usuario ya existe (409), redirigir a /home
+      if (response.status === 409) {
+        localStorage.setItem('userEmail', user.email);
+        history.push('/home');
+        window.location.reload();
+      } else if (response.status === 201) {
+        // Si es un nuevo usuario, redirigir a completar perfil
+        localStorage.setItem('userEmail', response.data.user.email);
+        history.push('/complete-profile');
+        window.location.reload();
+      }
+  
+    } catch (error: any) {
+      if (error.response && error.response.status === 409) {
+        // El usuario ya está registrado, tomamos la información del error para usar su email
+        const existingUserEmail = error.response.data.user.email; 
+        localStorage.setItem('userEmail', existingUserEmail);
+        history.push('/home');
+        window.location.reload();
+      } else {
+        console.error('Error al iniciar sesión con Google:', error);
+        setToastMessage('Error al iniciar sesión con Google.');
+        setShowToast(true);
+      }
     }
   };
+  
 
-  const loginWithEmail = async () => {
+  const loginWithEmail = async (e: React.FormEvent) => {
+    e.preventDefault(); // Prevenir el comportamiento por defecto del formulario
+    console.log('Iniciando el proceso de login...'); // Verifica que esta línea aparezca en la consola
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const response = await axios.post<LoginResponse>('http://localhost:5000/login', { email, password });
 
-      // Aquí puedes hacer una solicitud a tu API para confirmar la autenticación con tu base de datos MySQL
-      await axios.post('http://localhost:5000/login', { email, password });
-
-      history.push('/inicio');
-    } catch (error) {
-      console.error('Error al iniciar sesión:', error);
-      setToastMessage('Error al iniciar sesión.');
-      setShowToast(true);
+        console.log('Respuesta recibida:', response.data); // Verificar que la respuesta llega correctamente
+        if (response.data && response.data.user) {
+            localStorage.setItem('userEmail', response.data.user.email);
+            localStorage.setItem('id_owner', response.data.user.id.toString());
+            localStorage.setItem('nombre', response.data.user.nombre);
+            localStorage.setItem('apellido1', response.data.user.apellido1);
+            localStorage.setItem('apellido2', response.data.user.apellido2);
+            localStorage.setItem('direccion', response.data.user.direccion);
+            history.push('/home');
+            // Refrescar la página después de la redirección
+             window.location.reload();
+        }
+    } catch (err) {
+      const error = err as any; // Convertir `unknown` a `any`
+      if (error.response && error.response.status === 404) {
+        // Si el correo no existe, redirigir a /register
+        history.push('/register');
+        // Refrescar la página después de la redirección
+        window.location.reload();
+      } else if (error.response && error.response.status === 401) {
+        // Si la contraseña es incorrecta
+        setToastMessage('Contraseña incorrecta.');
+        setShowToast(true);
+      } else {
+        setToastMessage('Error al iniciar sesión.');
+        setShowToast(true);
+      }
     }
-  };
+};
 
+  
   const resetPassword = async () => {
     if (!email) {
       setToastMessage('Por favor, introduce tu correo electrónico.');
@@ -89,7 +144,7 @@ const Login: React.FC = () => {
   return (
     <IonPage>
       <IonContent style={styles.content}>
-        <div style={styles.cardContainer}> {/* Contenedor para centrar la tarjeta */}
+        <div style={styles.cardContainer}>
           <IonCard style={styles.card}>
             <IonCardHeader>
               <IonCardTitle>Iniciar Sesión</IonCardTitle>
@@ -102,18 +157,21 @@ const Login: React.FC = () => {
 
               <div style={{ textAlign: 'center', margin: '20px 0' }}>O</div>
 
-              <IonItem>
-                <IonLabel position="floating">Correo Electrónico</IonLabel>
-                <IonInput type="email" value={email} onIonChange={(e: any) => setEmail(e.target.value)} />
-              </IonItem>
-              <IonItem>
-                <IonLabel position="floating">Contraseña</IonLabel>
-                <IonInput type="password" value={password} onIonChange={(e: any) => setPassword(e.target.value)} />
-              </IonItem>
+              {/* Formulario para iniciar sesión con email y contraseña */}
+              <form onSubmit={loginWithEmail}>
+                <IonItem>
+                  <IonLabel position="floating">Correo Electrónico</IonLabel>
+                  <IonInput type="email" value={email} onIonInput={(e: any) => setEmail(e.target.value)} required />
+                </IonItem>
+                <IonItem>
+                  <IonLabel position="floating">Contraseña</IonLabel>
+                  <IonInput type="password" value={password} onIonInput={(e: any) => setPassword(e.target.value)} required />
+                </IonItem>
 
-              <IonButton expand="full" onClick={loginWithEmail} style={{ marginTop: '20px' }}>
-                Iniciar sesión
-              </IonButton>
+                <IonButton expand="full" type="submit" style={{ marginTop: '20px' }}>
+                  Iniciar sesión
+                </IonButton>
+              </form>
 
               <IonButton
                 expand="full"
@@ -183,7 +241,7 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: '100vh',
-    backgroundColor: '#f5f5dc', // Color crema
+    backgroundColor: '#f5f5dc',
   },
   cardContainer: {
     display: 'flex',

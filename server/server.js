@@ -99,8 +99,7 @@ app.post('/complete-profile', async (req, res) => {
        console.error('Error al actualizar el perfil:', error);
        return res.status(500).json({ error: 'Error al guardar el perfil.' });
     }
- });
- 
+});
 
 // Ruta para verificar si el correo electrónico ya está registrado
 app.post('/check-email', async (req, res) => {
@@ -158,45 +157,75 @@ app.post('/add-pet', async (req, res) => {
     }
 });
 
+// registrar usuarios con Google.
 app.post('/register-google', async (req, res) => {
     const { email, nombre, apellido1, apellido2, direccion, foto } = req.body;
 
     try {
+        // Verificar si el correo ya está registrado
         const [results] = await connection.query('SELECT * FROM owners WHERE email = ?', [email]);
+
         if (results.length > 0) {
-            return res.status(409).json({ message: 'Usuario ya registrado.' });
+            // El usuario ya está registrado, simplemente devolvemos la información del usuario
+            const user = results[0];
+            return res.status(200).json({
+                message: 'Inicio de sesión con Google exitoso.',
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    nombre: user.nombre,
+                    apellido1: user.apellido1,
+                    apellido2: user.apellido2,
+                    direccion: user.direccion,
+                },
+            });
         }
 
+        // Si el usuario no está registrado, lo registramos
         const query = 'INSERT INTO owners (email, nombre, apellido1, apellido2, direccion, foto) VALUES (?, ?, ?, ?, ?, ?)';
         await connection.query(query, [email, nombre, apellido1, apellido2, direccion, foto]);
 
-        return res.status(201).json({ message: 'Usuario registrado correctamente.' });
-    } catch (error) {
-        console.error('Error al registrar el usuario:', error);
-        return res.status(500).json({ error: 'Error al registrar el usuario.' });
-    }
-});
+        // Obtener el nuevo ID del usuario registrado
+        const [newUser] = await connection.query('SELECT * FROM owners WHERE email = ?', [email]);
 
+        return res.status(201).json({
+            message: 'Usuario registrado correctamente con Google.',
+            user: {
+                id: newUser[0].id,
+                email: newUser[0].email,
+                nombre: newUser[0].nombre,
+                apellido1: newUser[0].apellido1,
+                apellido2: newUser[0].apellido2,
+                direccion: newUser[0].direccion,
+            },
+        });
+    } catch (error) {
+        console.error('Error al procesar el registro con Google:', error);
+        return res.status(500).json({ error: 'Error al registrar el usuario con Google.' });
+    }
+});   
+
+// Ruta para el inicio de sesión manual
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        // Verificar si el usuario existe
         const [results] = await connection.query('SELECT * FROM owners WHERE email = ?', [email]);
 
         if (results.length === 0) {
-            return res.status(404).json({ message: 'Usuario no encontrado.' }); // Usuario no existe
+            return res.status(404).json({ message: 'Correo electrónico no encontrado.' });
         }
 
         const user = results[0];
-
-        // Verificar la contraseña
         const isPasswordValid = await bcrypt.compare(password, user.password);
+
         if (!isPasswordValid) {
-            return res.status(401).json({ message: 'Contraseña incorrecta.' }); // Contraseña incorrecta
+            return res.status(401).json({ message: 'Contraseña incorrecta.' });
         }
 
-        // Si el usuario y la contraseña son válidos, se envía una respuesta exitosa
+        // Aquí añadimos un log para verificar qué se está enviando como respuesta
+        console.log('Usuario autenticado: ', user);
+
         return res.status(200).json({
             message: 'Inicio de sesión exitoso.',
             user: {
@@ -205,8 +234,8 @@ app.post('/login', async (req, res) => {
                 nombre: user.nombre,
                 apellido1: user.apellido1,
                 apellido2: user.apellido2,
-                direccion: user.direccion
-            }
+                direccion: user.direccion,
+            },
         });
     } catch (error) {
         console.error('Error al iniciar sesión:', error);

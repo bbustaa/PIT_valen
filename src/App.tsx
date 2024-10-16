@@ -6,6 +6,7 @@ import Login from './Login';
 import Register from './Registro';
 import CompleteProfile from './CompleteProfile';
 import AddPet from './AddPet'; 
+import { useEffect, useState } from 'react';
 
 /* Ionic CSS */
 import '@ionic/react/css/core.css';
@@ -23,8 +24,19 @@ import './theme/variables.css';
 setupIonicReact();
 
 const App: React.FC = () => {
-  const isUserRegistered = !!localStorage.getItem('userEmail');  // Verifica si el usuario está registrado
-  const isProfileComplete = !!localStorage.getItem('id_owner');  // Verifica si el perfil está completo
+  const [isUserRegistered, setIsUserRegistered] = useState(!!localStorage.getItem('userEmail'));
+  const [isProfileComplete, setIsProfileComplete] = useState(!!localStorage.getItem('id_owner'));
+
+  // Actualizamos el estado al cambiar el almacenamiento local
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setIsUserRegistered(!!localStorage.getItem('userEmail'));
+      setIsProfileComplete(!!localStorage.getItem('id_owner'));
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   return (
     <IonApp>
@@ -32,7 +44,7 @@ const App: React.FC = () => {
         <IonRouterOutlet>
           {/* Ruta de Login */}
           <Route exact path="/login">
-            {isUserRegistered ? <Redirect to="/complete-profile" /> : <Login />}
+            {isUserRegistered ? <Redirect to={isProfileComplete ? "/home" : "/complete-profile"} /> : <Login />}
           </Route>
 
           {/* Ruta de Registro */}

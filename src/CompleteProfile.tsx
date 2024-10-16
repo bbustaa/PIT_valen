@@ -22,12 +22,11 @@ const CompleteProfile: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
-  const history = useHistory(); // Inicializar useHistory
+  const history = useHistory();
 
   useEffect(() => {
     console.log("Componente CompleteProfile montado"); 
     if (!email) {
-      // Redirige si no hay un usuario registrado
       history.push('/register');
     }
   }, [email, history]);
@@ -35,39 +34,44 @@ const CompleteProfile: React.FC = () => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     console.log("Enviando datos de perfil:", { firstName, lastName1, lastName2, address, email });
-
+  
     try {
-       const response = await fetch("http://localhost:5000/complete-profile", {
-          method: "POST",
-          headers: {
-             "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-             email,
-             firstName,
-             lastName1,
-             lastName2,
-             address,
-          }),
-       });
-
-       if (!response.ok) {
-          throw new Error("Error al guardar el perfil.");
-       }
-
-       const result = await response.json();
-       // Guarda el id_owner en localStorage
-       localStorage.setItem('id_owner', result.id_owner);
-
-       console.log("Perfil guardado exitosamente. ID del propietario:", result.id_owner);
-       history.push('/add-pet');  // Redirige a la página de añadir mascotas
-
+      const response = await fetch("http://localhost:5000/complete-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          firstName,
+          lastName1,
+          lastName2,
+          address,
+        }),
+      });
+  
+      if (!response.ok) {
+        throw new Error("Error al guardar el perfil.");
+      }
+  
+      const result = await response.json();
+      localStorage.setItem('id_owner', result.id_owner);
+  
+      // Aquí marcamos que el perfil ha sido completado
+      localStorage.setItem('isProfileComplete', 'true');
+  
+      console.log("Perfil guardado exitosamente. ID del propietario:", result.id_owner);
+      history.push('/add-pet');  // Redirige a la página de añadir mascotas
+      // Refrescar la página después de la redirección
+      window.location.reload();
+  
     } catch (error) {
-       console.error("Error al guardar el perfil:", error);
-       setToastMessage("Hubo un error al guardar el perfil.");
-       setShowToast(true);
+      console.error("Error al guardar el perfil:", error);
+      setToastMessage("Hubo un error al guardar el perfil.");
+      setShowToast(true);
     }
   };
+  
 
   return (
     <IonPage>
@@ -144,7 +148,7 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: '100vh',
-    backgroundColor: '#f5f5dc', 
+    backgroundColor: '#f5f5dc',
   },
   cardContainer: {
     display: 'flex',

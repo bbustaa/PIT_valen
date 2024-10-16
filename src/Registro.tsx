@@ -11,10 +11,10 @@ import {
   IonButton,
   IonToast
 } from "@ionic/react";
-import { useHistory } from 'react-router-dom'; // Cambiado a useHistory para react-router-dom@5
+import { useHistory } from 'react-router-dom';
 
 const Register: React.FC = () => {
-  const history = useHistory(); // Cambiado a useHistory
+  const history = useHistory(); // Inicializar useHistory
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState(""); 
@@ -23,7 +23,7 @@ const Register: React.FC = () => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setErrorMessage(null); 
+    setErrorMessage(null);
 
     if (password !== confirmPassword) {
       setErrorMessage("Las contraseñas no coinciden.");
@@ -32,8 +32,9 @@ const Register: React.FC = () => {
     }
 
     try {
-      console.log("Iniciando el registro del usuario..."); // Log para verificar
-      // Enviar solicitud POST para registrar el usuario en la base de datos
+      console.log("Iniciando el registro del usuario...");
+
+      // Enviar solicitud POST para registrar el usuario
       const response = await fetch('http://localhost:5000/register', {
         method: 'POST',
         headers: {
@@ -43,13 +44,19 @@ const Register: React.FC = () => {
       });
 
       const data = await response.json();
-      console.log("Respuesta del servidor:", data); // Verificar la respuesta del servidor
+      console.log("Respuesta del servidor:", data);
 
       if (response.ok) {
         console.log("Usuario registrado correctamente, redirigiendo a /complete-profile");
-        // Después de que el registro es exitoso
+
+        // Guardar el email en localStorage
         localStorage.setItem('userEmail', email);
-        history.push('/complete-profile'); // Navegar a la pantalla de completar perfil
+
+        // Redirigir a /complete-profile
+        history.push('/complete-profile');
+
+        // Refrescar la página después de la redirección
+        window.location.reload();
       } else {
         setErrorMessage(data.message || 'Error al registrar el usuario.');
         setShowToast(true);
@@ -63,8 +70,8 @@ const Register: React.FC = () => {
 
   return (
     <IonPage>
-      <IonContent style={styles.content}> {/* Estilo centrado y fondo crema */}
-        <div style={styles.cardContainer}> {/* Contenedor para centrar la tarjeta */}
+      <IonContent style={styles.content}> 
+        <div style={styles.cardContainer}>
           <IonCard style={styles.card}>
             <IonCardHeader>
               <IonCardTitle>Registrar Usuario</IonCardTitle>
@@ -130,7 +137,7 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: '100vh',
-    backgroundColor: '#f5f5dc', // Color crema para el fondo
+    backgroundColor: '#f5f5dc', 
   },
   cardContainer: {
     display: 'flex',

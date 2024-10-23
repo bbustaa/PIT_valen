@@ -12,19 +12,19 @@ import {
   IonToast
 } from "@ionic/react";
 import { useHistory } from 'react-router-dom';
+import { auth } from './firebaseConfig'; // Asegúrate de importar 'auth'
+import { createUserWithEmailAndPassword } from "firebase/auth";
 
 const Register: React.FC = () => {
-  const history = useHistory(); // Inicializar useHistory
+  const history = useHistory();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState(""); 
-  const [errorMessage, setErrorMessage] = useState<string | null>(null); 
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setErrorMessage(null);
-
     if (password !== confirmPassword) {
       setErrorMessage("Las contraseñas no coinciden.");
       setShowToast(true);
@@ -32,45 +32,26 @@ const Register: React.FC = () => {
     }
 
     try {
-      console.log("Iniciando el registro del usuario...");
+      // Utiliza Firebase para registrar al usuario
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      console.log("Usuario registrado con Firebase:", userCredential.user);
 
-      // Enviar solicitud POST para registrar el usuario
-      const response = await fetch('http://localhost:5000/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password })
-      });
+      // Opcional: Guarda el email en localStorage o maneja el estado de autenticación como prefieras
+      localStorage.setItem('userEmail', email);
 
-      const data = await response.json();
-      console.log("Respuesta del servidor:", data);
-
-      if (response.ok) {
-        console.log("Usuario registrado correctamente, redirigiendo a /complete-profile");
-
-        // Guardar el email en localStorage
-        localStorage.setItem('userEmail', email);
-
-        // Redirigir a /complete-profile
-        history.push('/complete-profile');
-
-        // Refrescar la página después de la redirección
-        window.location.reload();
-      } else {
-        setErrorMessage(data.message || 'Error al registrar el usuario.');
-        setShowToast(true);
-      }
+      // Redirige a la página de perfil completo o cualquier otra página
+      history.push('/complete-profile');
+      window.location.reload();
     } catch (error) {
-      console.error("Error al registrar el usuario:", error);
-      setErrorMessage('Error al conectar con el servidor.');
+      console.error("Error al registrar con Firebase:", error);
+      //setErrorMessage(error.message);
       setShowToast(true);
     }
   };
 
   return (
     <IonPage>
-      <IonContent style={styles.content}> 
+      <IonContent style={styles.content}>
         <div style={styles.cardContainer}>
           <IonCard style={styles.card}>
             <IonCardHeader>
@@ -78,7 +59,12 @@ const Register: React.FC = () => {
             </IonCardHeader>
             <form onSubmit={handleSubmit} style={{ padding: '20px' }}>
               {errorMessage && (
-                <p style={{ color: "red", textAlign: "center" }}>{errorMessage}</p>
+                <IonToast
+                  isOpen={showToast}
+                  onDidDismiss={() => setShowToast(false)}
+                  message={errorMessage}
+                  duration={2000}
+                />
               )}
               <IonItem>
                 <IonLabel position="floating">Correo Electrónico</IonLabel>
@@ -107,7 +93,6 @@ const Register: React.FC = () => {
                   required
                 />
               </IonItem>
-
               <IonButton
                 type="submit"
                 expand="full"
@@ -119,13 +104,6 @@ const Register: React.FC = () => {
             </form>
           </IonCard>
         </div>
-
-        <IonToast
-          isOpen={showToast}
-          onDidDismiss={() => setShowToast(false)}
-          message={errorMessage || undefined}
-          duration={2000}
-        />
       </IonContent>
     </IonPage>
   );

@@ -54,43 +54,31 @@ async function connectDB() {
 connectDB();
 
 // Ruta para registrar un usuario
-app.post('/register',
-    // Validaciones
-    [
-        body('email').isEmail().withMessage('Debe ser un correo válido'),
-        body('password').isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres')
-    ],
-    async (req, res) => {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() });
+app.post('/register', async (req, res) => {
+    const { email, firebaseUID } = req.body;
+    console.log("Registrando usuario con email:", email, "y UID:", firebaseUID);
+
+    try {
+        console.log("Verificando existencia del usuario en la base de datos...");
+        const [user] = await connection.query('SELECT * FROM owners WHERE id = ?', [firebaseUID]);
+        
+        if (user.length > 0) {
+            console.log("Usuario ya registrado con el UID:", firebaseUID);
+            return res.status(409).json({ message: 'Usuario ya registrado con este UID.' });
         }
 
-        const { email, password } = req.body;
+        console.log("Insertando nuevo usuario en la base de datos...");
+        const query = 'INSERT INTO owners (email, id) VALUES (?, ?)';
+        const result = await connection.query(query, [email, firebaseUID]);
+        console.log("Usuario registrado exitosamente:", result);
 
-        try {
-            // Verificar si el usuario ya existe
-            const [results] = await connection.query('SELECT * FROM owners WHERE email = ?', [email]);
-
-            if (results.length > 0) {
-                return res.status(409).json({ message: 'Usuario ya registrado.' }); // Conflict
-            }
-
-            // Encriptar la contraseña
-            const hashedPassword = await bcrypt.hash(password, 10);
-
-            // Insertar el nuevo usuario en la base de datos
-            const query = 'INSERT INTO owners (email, password) VALUES (?, ?)';
-            await connection.query(query, [email, hashedPassword]);
-
-            return res.status(201).json({ message: 'Usuario registrado correctamente.' }); // Created
-
-        } catch (error) {
-            console.error('Error al registrar el usuario:', error);
-            return res.status(500).json({ error: 'Error al registrar el usuario.' });
-        }
+        res.status(201).json({ message: 'Usuario registrado correctamente.', firebaseUID });
+    } catch (error) {
+        console.error('Error al registrar el usuario:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
-);
+});
+
 
 // Ruta para completar el perfil del usuario en MySQL
 app.post('/complete-profile', async (req, res) => {

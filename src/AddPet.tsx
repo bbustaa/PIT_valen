@@ -16,7 +16,7 @@ import {
 import { useHistory } from "react-router-dom"; // Importa useHistory para redirigir
 
 const AddPet: React.FC = () => {
-  const history = useHistory(); // Inicializa useHistory
+  const history = useHistory();
   const [pets, setPets] = useState([{ nombre: "", tipo_mascota: "", foto: "", descripcion: "" }]);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -33,45 +33,43 @@ const AddPet: React.FC = () => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-
-    const id_owner = localStorage.getItem('id_owner');  // Obtener el id_owner del almacenamiento local
+    const id_owner = localStorage.getItem('id_owner');
     
     if (!id_owner) {
-       console.error('id_owner no encontrado en localStorage');
-       setToastMessage("Error: No se encontró el ID del dueño.");
-       setShowToast(true);
-       return;
+      console.error('id_owner no encontrado en localStorage');
+      setToastMessage("Error: No se encontró el ID del dueño.");
+      setShowToast(true);
+      return;
     }
 
     console.log("Datos enviados a /add-pet:", { pets, id_owner });
 
     try {
-       const response = await fetch("http://localhost:5000/add-pet", {
-          method: "POST",
-          headers: {
-             "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ pets, id_owner }),  // Asegúrate de enviar el id_owner
-       });
+      const response = await fetch("http://localhost:5000/add-pet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pets, id_owner }),
+      });
 
-       if (!response.ok) {
-          throw new Error("Error al guardar las mascotas.");
-       }
+      if (!response.ok) {
+        throw new Error("Error al guardar las mascotas.");
+      }
 
-       const result = await response.json();
-       console.log("Respuesta del servidor:", result);
-       setToastMessage("Mascotas guardadas exitosamente.");
-       setShowToast(true);
-
-       // Redirige a /home después de que las mascotas se hayan guardado correctamente
-       history.push('/home');
-
+      const result = await response.json();
+      console.log("Respuesta del servidor:", result);
+      setToastMessage("Mascotas guardadas exitosamente.");
+      setShowToast(true);
+      history.push('/home');
     } catch (error) {
-       console.error("Error al guardar las mascotas:", error);
-       setToastMessage("Hubo un error al guardar las mascotas.");
-       setShowToast(true);
+      console.error("Error al guardar las mascotas:", error);
+      setToastMessage("Hubo un error al guardar las mascotas.");
+      setShowToast(true);
     }
- };
+  };
+
+  const handleNoPets = () => {
+    history.push('/home');
+  };
 
   return (
     <IonPage>
@@ -143,6 +141,14 @@ const AddPet: React.FC = () => {
               >
                 Guardar Mascotas
               </IonButton>
+              <IonButton
+                expand="full"
+                style={{ marginTop: "10px" }}
+                color="medium"
+                onClick={handleNoPets}
+              >
+                No tengo una mascota
+              </IonButton>
             </form>
           </IonCard>
         </div>
@@ -164,7 +170,7 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: '100vh',
-    backgroundColor: '#f5f5dc', // Color crema
+    backgroundColor: '#f5f5dc',
   },
   cardContainer: {
     display: 'flex',
@@ -185,3 +191,4 @@ const styles = {
 };
 
 export default AddPet;
+

@@ -55,10 +55,13 @@ const CompleteProfile: React.FC = () => {
       }
   
       const result = await response.json();
-      localStorage.setItem('id_owner', result.id_owner);
+      localStorage.setItem('id_owner', result.id_owner.toString());
   
-      // Aquí marcamos que el perfil ha sido completado
-      localStorage.setItem('isProfileComplete', 'true');
+      // Aquí también guardamos los otros datos de perfil en el localStorage
+      localStorage.setItem('nombre', firstName);
+      localStorage.setItem('apellido1', lastName1);
+      localStorage.setItem('apellido2', lastName2);
+      localStorage.setItem('direccion', address);
   
       console.log("Perfil guardado exitosamente. ID del propietario:", result.id_owner);
       history.push('/add-pet');  // Redirige a la página de añadir mascotas

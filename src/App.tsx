@@ -25,13 +25,14 @@ setupIonicReact();
 
 const App: React.FC = () => {
   const [isUserRegistered, setIsUserRegistered] = useState(!!localStorage.getItem('userEmail'));
-  const [isProfileComplete, setIsProfileComplete] = useState(!!localStorage.getItem('id_owner'));
+  const [isProfileComplete, setIsProfileComplete] = useState(!!localStorage.getItem('id_owner') || !!localStorage.getItem('id'));
+
 
   // Actualizamos el estado al cambiar el almacenamiento local
   useEffect(() => {
     const handleStorageChange = () => {
-      setIsUserRegistered(!!localStorage.getItem('userEmail'));
-      setIsProfileComplete(!!localStorage.getItem('id_owner'));
+      setIsUserRegistered(!!localStorage.getItem('email'));
+      setIsProfileComplete(!!localStorage.getItem('id') || !!localStorage.getItem('id_owner'));
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -55,18 +56,16 @@ const App: React.FC = () => {
           {/* Ruta para Completar Perfil */}
           <Route exact path="/complete-profile">
             {isUserRegistered ? (
-              isProfileComplete ? <Redirect to="/add-pet" /> : <CompleteProfile />
+              isProfileComplete ? <Redirect to="/home" /> : <CompleteProfile />
             ) : (
               <Redirect to="/login" />
             )}
           </Route>
 
-          {/* Ruta para Añadir Mascotas */}
           <Route exact path="/add-pet">
             {isProfileComplete ? <AddPet /> : <Redirect to="/complete-profile" />}
           </Route>
 
-          {/* Ruta para el Home */}
           <Route exact path="/home">
             {isProfileComplete ? <Home /> : <Redirect to="/complete-profile" />}
           </Route>

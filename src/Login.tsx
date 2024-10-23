@@ -58,8 +58,16 @@ const Login: React.FC = () => {
       const response = await axios.post<LoginResponse>('http://localhost:5000/register-google', userData);
   
       // Si el usuario ya existe (409), redirigir a /home
-      if (response.status === 409) {
-        localStorage.setItem('userEmail', user.email);
+      if (response.status === 200 || response.status === 409) {
+        const { email, id, nombre, apellido1, apellido2, direccion } = response.data.user;
+        // Almacenar en el LocalStorage
+        // Validación de datos
+        localStorage.setItem('userEmail', email || '');
+        localStorage.setItem('id', id ? id.toString() : '');
+        localStorage.setItem('nombre', nombre || '');
+        localStorage.setItem('apellido1', apellido1 || '');
+        localStorage.setItem('apellido2', apellido2 || '');
+        localStorage.setItem('direccion', direccion || '');
         history.push('/home');
         window.location.reload();
       } else if (response.status === 201) {
@@ -72,8 +80,14 @@ const Login: React.FC = () => {
     } catch (error: any) {
       if (error.response && error.response.status === 409) {
         // El usuario ya está registrado, tomamos la información del error para usar su email
-        const existingUserEmail = error.response.data.user.email; 
-        localStorage.setItem('userEmail', existingUserEmail);
+        const { email, id, nombre, apellido1, apellido2, direccion } = error.response.data.user;
+        // Validación de datos
+        localStorage.setItem('userEmail', email || '');
+        localStorage.setItem('id', id ? id.toString() : '');
+        localStorage.setItem('nombre', nombre || '');
+        localStorage.setItem('apellido1', apellido1 || '');
+        localStorage.setItem('apellido2', apellido2 || '');
+        localStorage.setItem('direccion', direccion || '');
         history.push('/home');
         window.location.reload();
       } else {

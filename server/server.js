@@ -10,7 +10,22 @@ const app = express();
 const PORT = process.env.PORT || 5000; // Usar el puerto 5000 por defecto
 
 // Middleware
-app.use(cors());
+// Configura CORS para permitir solicitudes desde tu frontend
+app.use(cors({
+    origin: '*',  // Reemplaza con la URL de tu aplicación
+    methods: 'GET,POST,PUT,DELETE',
+    credentials: true // Si usas cookies o autenticación basada en sesión
+}));
+
+// Configura las cabeceras de seguridad
+app.use(function(req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+  });
+  
+
+// Configura el body parser para leer los datos del cliente 
 app.use(bodyParser.json());
 
 // Configura la conexión a la base de datos
@@ -100,26 +115,24 @@ app.post('/complete-profile', async (req, res) => {
        return res.status(500).json({ error: 'Error al guardar el perfil.' });
     }
 });
-
-// Ruta para verificar si el correo electrónico ya está registrado
-app.post('/check-email', async (req, res) => {
+  
+  // Ruta para registrar un nuevo usuario
+  app.post('/registrar-usuario', async (req, res) => {
     const { email } = req.body;
-
-    try {
-        // Verificar si el usuario ya existe en la base de datos
-        const [results] = await connection.query('SELECT * FROM owners WHERE email = ?', [email]);
-
-        if (results.length > 0) {
-            return res.status(409).json({ message: 'El correo ya está registrado.' }); // Conflict
-        }
-
-        return res.status(200).json({ message: 'Correo disponible.' });
-
-    } catch (error) {
-        console.error('Error al verificar el correo:', error);
-        return res.status(500).json({ error: 'Error al consultar la base de datos.' });
-    }
-});
+  
+    const query = 'INSERT INTO usuarios (email) VALUES (?)';
+    db.query(query, [email], (err, result) => {
+      if (err) {
+        console.error('Error ejecutando la inserción:', err);
+        return res.status(500).send('Error del servidor');
+      }
+  
+      res.json({
+        success: true,
+        message: 'Usuario registrado exitosamente'
+      });
+    });
+  });
 
 // Ruta para añadir mascotas
 app.post('/add-pet', async (req, res) => {
@@ -159,17 +172,21 @@ app.post('/add-pet', async (req, res) => {
 
 // registrar usuarios con Google.
 app.post('/register-google', async (req, res) => {
-    const { email, nombre, apellido1, apellido2, direccion, foto } = req.body;
+    const { email } = req.body;  // Solo necesitamos el correo
 
     try {
         // Verificar si el correo ya está registrado
         const [results] = await connection.query('SELECT * FROM owners WHERE email = ?', [email]);
 
         if (results.length > 0) {
-            // El usuario ya está registrado, simplemente devolvemos la información del usuario
+            // El usuario ya está registrado, devolvemos el ID del usuario
             const user = results[0];
+
+            // Log para verificar lo que estás enviando
+            console.log('Datos del usuario:', user);
+
             return res.status(200).json({
-                message: 'Inicio de sesión con Google exitoso.',
+                message: 'Usuario ya registrado.',
                 user: {
                     id: user.id,
                     email: user.email,
@@ -181,9 +198,9 @@ app.post('/register-google', async (req, res) => {
             });
         }
 
-        // Si el usuario no está registrado, lo registramos
-        const query = 'INSERT INTO owners (email, nombre, apellido1, apellido2, direccion, foto) VALUES (?, ?, ?, ?, ?, ?)';
-        await connection.query(query, [email, nombre, apellido1, apellido2, direccion, foto]);
+        // Si el usuario no está registrado, lo registramos solo con el correo
+        const query = 'INSERT INTO owners (email) VALUES (?)';
+        await connection.query(query, [email]);
 
         // Obtener el nuevo ID del usuario registrado
         const [newUser] = await connection.query('SELECT * FROM owners WHERE email = ?', [email]);
@@ -193,17 +210,13 @@ app.post('/register-google', async (req, res) => {
             user: {
                 id: newUser[0].id,
                 email: newUser[0].email,
-                nombre: newUser[0].nombre,
-                apellido1: newUser[0].apellido1,
-                apellido2: newUser[0].apellido2,
-                direccion: newUser[0].direccion,
             },
         });
     } catch (error) {
         console.error('Error al procesar el registro con Google:', error);
         return res.status(500).json({ error: 'Error al registrar el usuario con Google.' });
     }
-});   
+});
 
 // Ruta para el inicio de sesión manual
 app.post('/login', async (req, res) => {

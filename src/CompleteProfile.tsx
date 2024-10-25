@@ -1,4 +1,4 @@
-import React, { useState, useEffect, FC } from "react";
+import React, { useState, useEffect } from "react";
 import {
   IonPage,
   IonContent,
@@ -18,22 +18,30 @@ const CompleteProfile: React.FC = () => {
   const [lastName1, setLastName1] = useState("");
   const [lastName2, setLastName2] = useState("");
   const [address, setAddress] = useState("");
-  const [email, setEmail] = useState(localStorage.getItem('userEmail') || "");
+  const [id, setId] = useState(localStorage.getItem('id') || "");
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  
+
   const history = useHistory();
 
   useEffect(() => {
-    console.log("Componente CompleteProfile montado"); 
-    if (!email) {
+    console.log("Componente CompleteProfile montado");
+    if (!id) {
       history.push('/register');
     }
-  }, [email, history]);
+  }, [id, history]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    console.log("Enviando datos de perfil:", { firstName, lastName1, lastName2, address, email });
+    
+    const id = localStorage.getItem('id');  // Recupera correctamente el 'id'
+    
+    if (!id) {
+      console.error('No se encontró un ID válido para el usuario.');
+      return;
+    }
+    
+    console.log('Enviando datos de perfil:', { firstName, lastName1, lastName2, address, id });
   
     try {
       const response = await fetch("http://localhost:5000/complete-profile", {
@@ -42,7 +50,7 @@ const CompleteProfile: React.FC = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email,
+          id,      
           firstName,
           lastName1,
           lastName2,
@@ -50,30 +58,35 @@ const CompleteProfile: React.FC = () => {
         }),
       });
   
+      // Verificar la respuesta del servidor
       if (!response.ok) {
         throw new Error("Error al guardar el perfil.");
       }
   
       const result = await response.json();
-      localStorage.setItem('id_owner', result.id_owner.toString());
-  
-      // Aquí también guardamos los otros datos de perfil en el localStorage
-      localStorage.setItem('nombre', firstName);
-      localStorage.setItem('apellido1', lastName1);
-      localStorage.setItem('apellido2', lastName2);
-      localStorage.setItem('direccion', address);
-  
-      console.log("Perfil guardado exitosamente. ID del propietario:", result.id_owner);
-      history.push('/add-pet');  // Redirige a la página de añadir mascotas
-      // Refrescar la página después de la redirección
+      console.log("Perfil guardado exitosamente:", result);
+
+      // Asegurarse de que el resultado contiene la información esperada
+      const { email, nombre, apellido1, apellido2, direccion } = result;
+
+      // Guardar los datos en localStorage
+      localStorage.setItem('userEmail', email || '');
+      localStorage.setItem('nombre', nombre || '');
+      localStorage.setItem('apellido1', apellido1 || '');
+      localStorage.setItem('apellido2', apellido2 || '');
+      localStorage.setItem('direccion', direccion || '');
+
+      console.log('Datos guardados en localStorage');
+
+      // Creo que solamente con esto ya estaría bien
+      history.push('/add-pet');
       window.location.reload();
   
     } catch (error) {
       console.error("Error al guardar el perfil:", error);
-      setToastMessage("Hubo un error al guardar el perfil.");
-      setShowToast(true);
     }
   };
+  
   
 
   return (

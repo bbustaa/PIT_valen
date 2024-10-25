@@ -22,94 +22,122 @@ app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     next();
-  });
-  
+});
 
 // Configura el body parser para leer los datos del cliente 
 app.use(bodyParser.json());
 
-// Configura la conexión a la base de datos
-const dbConfig = {
+// Configura el pool de conexiones a la base de datos
+const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '', // Cambia esto si tienes contraseña
     database: process.env.DB_DATABASE || 'proyectoPIT',
-    port: process.env.DB_PORT || 3306 // Puerto por defecto en XAMPP
-};
+    port: process.env.DB_PORT || 3306, // Puerto por defecto en XAMPP
+    waitForConnections: true,
+    connectionLimit: 10,  // Limitar a 10 conexiones simultáneas
+    queueLimit: 0
+});
 
-let connection;
-
-// Función para crear la conexión
-async function connectDB() {
-    try {
-        connection = await mysql.createConnection(dbConfig);
-        console.log('Conectado a la base de datos proyectoPIT');
-    } catch (error) {
-        console.error('Error al conectar a la base de datos:', error);
-        process.exit(1); // Salir si no puede conectarse
+// Ruta para registrar un usuario con verificación de Firebase UID
+app.post('/register', [
+    body('email').isEmail().withMessage('Debe ser un correo válido'),
+    body('firebaseUID').not().isEmpty().withMessage('UID de Firebase es necesario')
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
     }
-}
 
-// Conectar a la base de datos al inicio
-connectDB();
-
-// Ruta para registrar un usuario
-app.post('/register', async (req, res) => {
     const { email, firebaseUID } = req.body;
-    console.log("Registrando usuario con email:", email, "y UID:", firebaseUID);
+
+    // Debug: Verificar los datos que llegan al servidor
+    console.log('Datos recibidos para registro:', { email, firebaseUID });
 
     try {
-        console.log("Verificando existencia del usuario en la base de datos...");
-        const [user] = await connection.query('SELECT * FROM owners WHERE id = ?', [firebaseUID]);
+        // Verificar si el usuario ya existe en la base de datos
+        const [existingUser] = await pool.query('SELECT * FROM owners WHERE id = ?', [firebaseUID]);
         
-        if (user.length > 0) {
-            console.log("Usuario ya registrado con el UID:", firebaseUID);
-            return res.status(409).json({ message: 'Usuario ya registrado con este UID.' });
+        console.log('Resultado de la búsqueda de usuario existente:', existingUser);
+
+        if (existingUser.length > 0) {
+            return res.status(409).json({ message: 'Este usuario ya está registrado.' });
         }
 
-        console.log("Insertando nuevo usuario en la base de datos...");
-        const query = 'INSERT INTO owners (email, id) VALUES (?, ?)';
-        const result = await connection.query(query, [email, firebaseUID]);
-        console.log("Usuario registrado exitosamente:", result);
+        // Insertar el nuevo usuario en la base de datos
+        const [insertResult] = await pool.query(
+            'INSERT INTO owners (email, id) VALUES (?, ?)',
+            [email, firebaseUID]
+        );
 
-        res.status(201).json({ message: 'Usuario registrado correctamente.', firebaseUID });
+        // Debug: Verificar el resultado de la inserción
+        console.log('Resultado de la inserción del usuario:', insertResult);
+
+        res.status(201).json({ message: 'Usuario registrado correctamente.', data: insertResult });
     } catch (error) {
         console.error('Error al registrar el usuario:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
 
-
 // Ruta para completar el perfil del usuario en MySQL
 app.post('/complete-profile', async (req, res) => {
-    const { email, firstName, lastName1, lastName2, address } = req.body;
- 
+    const { id, firstName, lastName1, lastName2, address } = req.body;
+    
+    // Imprimir los datos recibidos
+    console.log('Datos recibidos para actualizar perfil:', { id, firstName, lastName1, lastName2, address });
+
+    // Aquí colocamos el console.log para verificar que el ID esté correcto
+    console.log('ID recibido en el servidor:', id);
+
+    // Asegúrate de que el ID es un string y no un array
+    const userId = id;
+
     try {
-       // Actualiza el perfil del usuario
-       const query = `
-          UPDATE owners 
-          SET nombre = ?, apellido1 = ?, apellido2 = ?, direccion = ? 
-          WHERE email = ?
-       `;
-       await connection.query(query, [firstName, lastName1, lastName2, address, email]);
- 
-       // Obtener el id_owner del usuario que acaba de actualizar su perfil
-       const [result] = await connection.query('SELECT id FROM owners WHERE email = ?', [email]);
- 
-       return res.status(200).json({ message: 'Perfil actualizado exitosamente.', id_owner: result[0].id });
- 
+        // Actualiza el perfil del usuario usando el ID como identificador
+        const queryUpdate = `
+            UPDATE owners 
+            SET nombre = ?, apellido1 = ?, apellido2 = ?, direccion = ? 
+            WHERE id = ?
+        `;
+        const [updateResult] = await pool.query(queryUpdate, [firstName, lastName1, lastName2, address, userId]);
+
+        console.log('Resultado de la actualización:', updateResult);
+
+        // Obtener el email del usuario que acaba de actualizar su perfil usando su ID
+        const querySelect = 'SELECT email, nombre, apellido1, apellido2, direccion FROM owners WHERE id = ?';
+        const [result] = await pool.query(querySelect, [userId]);
+
+        // Verificar el resultado de la consulta para obtener el email
+        console.log('Resultado de la consulta para obtener el email:', result);
+
+        if (result.length === 0) {
+            return res.status(404).json({ message: 'No se encontró el usuario después de la actualización.' });
+        }
+
+        // Devolver el email como respuesta
+        return res.status(200).json({ 
+            message: 'Perfil actualizado exitosamente.', 
+            email: result[0].email,
+            nombre: result[0].nombre,
+            apellido1: result[0].apellido1,
+            apellido2: result[0].apellido2,
+            direccion: result[0].direccion
+        });
+
     } catch (error) {
-       console.error('Error al actualizar el perfil:', error);
-       return res.status(500).json({ error: 'Error al guardar el perfil.' });
+        // Imprimir el error exacto en el servidor
+        console.error('Error al actualizar el perfil:', error);
+        return res.status(500).json({ error: 'Error al guardar el perfil.' });
     }
 });
   
-  // Ruta para registrar un nuevo usuario
-  app.post('/registrar-usuario', async (req, res) => {
-    const { email } = req.body;
+// Ruta para registrar un nuevo usuario
+app.post('/registrar-usuario', async (req, res) => {
+    const { id } = req.body;
   
-    const query = 'INSERT INTO usuarios (email) VALUES (?)';
-    db.query(query, [email], (err, result) => {
+    const query = 'INSERT INTO usuarios (id) VALUES (?)';
+    db.query(query, [id], (err, result) => {
       if (err) {
         console.error('Error ejecutando la inserción:', err);
         return res.status(500).send('Error del servidor');
@@ -120,7 +148,7 @@ app.post('/complete-profile', async (req, res) => {
         message: 'Usuario registrado exitosamente'
       });
     });
-  });
+});
 
 // Ruta para añadir mascotas
 app.post('/add-pet', async (req, res) => {
@@ -158,53 +186,49 @@ app.post('/add-pet', async (req, res) => {
     }
 });
 
-// registrar usuarios con Google.
+// Ruta para registrar un usuario con verificación de Firebase UID
 app.post('/register-google', async (req, res) => {
-    const { email } = req.body;  // Solo necesitamos el correo
+    const { email, firebaseUID } = req.body;
+    
+    // Debug: Verificar los datos que llegan al servidor
+    console.log('Datos recibidos para registro:', { email, firebaseUID });
 
     try {
-        // Verificar si el correo ya está registrado
-        const [results] = await connection.query('SELECT * FROM owners WHERE email = ?', [email]);
+        const [existingUser] = await pool.query('SELECT * FROM owners WHERE id = ?', [firebaseUID]);
 
-        if (results.length > 0) {
+        if (existingUser.length > 0) {
             // El usuario ya está registrado, devolvemos el ID del usuario
-            const user = results[0];
-
-            // Log para verificar lo que estás enviando
-            console.log('Datos del usuario:', user);
-
-            return res.status(200).json({
-                message: 'Usuario ya registrado.',
-                user: {
-                    id: user.id,
-                    email: user.email,
-                    nombre: user.nombre,
-                    apellido1: user.apellido1,
-                    apellido2: user.apellido2,
-                    direccion: user.direccion,
-                },
+            return res.status(409).json({ 
+                message: 'Este usuario ya está registrado.' ,
+                user: existingUser[0]
             });
         }
 
-        // Si el usuario no está registrado, lo registramos solo con el correo
-        const query = 'INSERT INTO owners (email) VALUES (?)';
-        await connection.query(query, [email]);
+        const [insertResult] = await pool.query(
+            'INSERT INTO owners (email, id) VALUES (?, ?)',
+            [email, firebaseUID]
+        );
 
-        // Obtener el nuevo ID del usuario registrado
-        const [newUser] = await connection.query('SELECT * FROM owners WHERE email = ?', [email]);
+        console.log('Usuario registrado con éxito:', insertResult);
+        // Devolver el email en la respuesta JSON
 
-        return res.status(201).json({
-            message: 'Usuario registrado correctamente con Google.',
+        res.status(201).json({ 
+            message: 'Usuario registrado correctamente.',
             user: {
-                id: newUser[0].id,
-                email: newUser[0].email,
-            },
+                email: email,
+                id: firebaseUID,  // el UID del usuario registrado
+                nombre: '',       // Deja estos campos vacíos si aún no se han llenado
+                apellido1: '',
+                apellido2: '',
+                direccion: ''
+              }
         });
     } catch (error) {
-        console.error('Error al procesar el registro con Google:', error);
-        return res.status(500).json({ error: 'Error al registrar el usuario con Google.' });
+        console.error('Error al registrar el usuario:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
+
 
 // Ruta para el inicio de sesión manual
 app.post('/login', async (req, res) => {

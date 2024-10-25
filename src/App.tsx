@@ -45,29 +45,29 @@ const App: React.FC = () => {
         <IonRouterOutlet>
           {/* Ruta de Login */}
           <Route exact path="/login">
-            {isUserRegistered ? <Redirect to={isProfileComplete ? "/home" : "/complete-profile"} /> : <Login />}
+            {isProfileComplete ? <Redirect to={isUserRegistered ? "/home" : "/complete-profile"} /> : <Login />}
           </Route>
 
           {/* Ruta de Registro */}
           <Route exact path="/register">
-            {isUserRegistered ? <Redirect to="/complete-profile" /> : <Register />}
+            {isProfileComplete ? <Redirect to="/complete-profile" /> : <Register />}
           </Route>
 
           {/* Ruta para Completar Perfil */}
           <Route exact path="/complete-profile">
-            {isUserRegistered ? (
-              isProfileComplete ? <Redirect to="/home" /> : <CompleteProfile />
+            {isProfileComplete ? (
+              isUserRegistered ? <Redirect to="/home" /> : <CompleteProfile />
             ) : (
               <Redirect to="/login" />
             )}
           </Route>
 
           <Route exact path="/add-pet">
-            {isProfileComplete ? <AddPet /> : <Redirect to="/complete-profile" />}
+            {isUserRegistered ? <AddPet /> : <Redirect to="/complete-profile" />}
           </Route>
 
           <Route exact path="/home">
-            {isProfileComplete ? <Home /> : <Redirect to="/complete-profile" />}
+            {isUserRegistered ? <Home /> : <Redirect to="/complete-profile" />}
           </Route>
 
           {/* Ruta raíz que redirige a Login */}

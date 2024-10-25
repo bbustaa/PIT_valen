@@ -22,7 +22,7 @@ import axios from 'axios';
 interface LoginResponse {
   message: string;
   user: {
-    id: number;
+    id: string;
     email: string;
     nombre: string;
     apellido1: string;
@@ -44,26 +44,35 @@ const Login: React.FC = () => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
   
+      // Verificar qué datos tiene 'user'
+      console.log("Datos del usuario después del login con Google:", user);
+  
       // Verificamos que el email está disponible
-      if (!user.email) {
+      if (!user || !user.email) {
         throw new Error('No se pudo obtener el correo electrónico de la cuenta de Google.');
       }
   
+      // Obtén el UID de Firebase
+      const firebaseUID = user.uid;
+      console.log("UID de Firebase:", firebaseUID);
+  
       // Creamos un objeto con la información obtenida de Google
       const userData = {
-        email: user.email
+        email: user.email,
+        firebaseUID: firebaseUID // Incluye el UID en el objeto
       };
   
       // Enviamos esta información al servidor
       const response = await axios.post<LoginResponse>('http://localhost:5000/register-google', userData);
   
+      console.log('Respuesta completa del servidor:', response);
+  
       // Si el usuario ya existe (409), redirigir a /home
       if (response.status === 200 || response.status === 409) {
         const { email, id, nombre, apellido1, apellido2, direccion } = response.data.user;
         // Almacenar en el LocalStorage
-        // Validación de datos
         localStorage.setItem('userEmail', email || '');
-        localStorage.setItem('id', id ? id.toString() : '');
+        localStorage.setItem('id', id || '');
         localStorage.setItem('nombre', nombre || '');
         localStorage.setItem('apellido1', apellido1 || '');
         localStorage.setItem('apellido2', apellido2 || '');
@@ -71,34 +80,22 @@ const Login: React.FC = () => {
         history.push('/home');
         window.location.reload();
       } else if (response.status === 201) {
+        console.log('Usuario nuevo:', response.data.user);
         // Si es un nuevo usuario, redirigir a completar perfil
-        localStorage.setItem('userEmail', response.data.user.email);
+        localStorage.setItem('id', response.data.user.id);
         history.push('/complete-profile');
         window.location.reload();
       }
   
     } catch (error: any) {
-      if (error.response && error.response.status === 409) {
-        // El usuario ya está registrado, tomamos la información del error para usar su email
-        const { email, id, nombre, apellido1, apellido2, direccion } = error.response.data.user;
-        // Validación de datos
-        localStorage.setItem('userEmail', email || '');
-        localStorage.setItem('id', id ? id.toString() : '');
-        localStorage.setItem('nombre', nombre || '');
-        localStorage.setItem('apellido1', apellido1 || '');
-        localStorage.setItem('apellido2', apellido2 || '');
-        localStorage.setItem('direccion', direccion || '');
-        history.push('/home');
-        window.location.reload();
-      } else {
-        console.error('Error al iniciar sesión con Google:', error);
-        setToastMessage('Error al iniciar sesión con Google.');
-        setShowToast(true);
-      }
+      console.error('Error al iniciar sesión con Google:', error);
+      setToastMessage('Error al iniciar sesión con Google.');
+      setShowToast(true);
     }
   };
   
 
+  // Login con correo y contraseña
   const loginWithEmail = async (e: React.FormEvent) => {
     e.preventDefault(); // Prevenir el comportamiento por defecto del formulario
     console.log('Iniciando el proceso de login...'); // Verifica que esta línea aparezca en la consola
@@ -109,7 +106,7 @@ const Login: React.FC = () => {
         console.log('Respuesta recibida:', response.data); // Verificar que la respuesta llega correctamente
         if (response.data && response.data.user) {
             localStorage.setItem('userEmail', response.data.user.email);
-            localStorage.setItem('id_owner', response.data.user.id.toString());
+            localStorage.setItem('id', response.data.user.id);
             localStorage.setItem('nombre', response.data.user.nombre);
             localStorage.setItem('apellido1', response.data.user.apellido1);
             localStorage.setItem('apellido2', response.data.user.apellido2);

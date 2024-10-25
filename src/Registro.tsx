@@ -12,7 +12,7 @@ import {
   IonToast
 } from "@ionic/react";
 import { useHistory } from 'react-router-dom';
-import { auth } from './firebaseConfig'; // Asegúrate de importar 'auth'
+import { auth } from './firebaseConfig';
 import { createUserWithEmailAndPassword } from "firebase/auth";
 
 const Register: React.FC = () => {
@@ -32,19 +32,32 @@ const Register: React.FC = () => {
     }
 
     try {
-      // Utiliza Firebase para registrar al usuario
+      // Registrar en Firebase
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      console.log("Usuario registrado con Firebase:", userCredential.user);
+      const firebaseUID = userCredential.user.uid;
+      console.log("Usuario registrado con Firebase:", firebaseUID);
 
-      // Opcional: Guarda el email en localStorage o maneja el estado de autenticación como prefieras
-      localStorage.setItem('userEmail', email);
+      // Enviar el UID y el email al backend para almacenarlo en MySQL
+      const response = await fetch('http://localhost:5000/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, firebaseUID })
+      });
 
-      // Redirige a la página de perfil completo o cualquier otra página
+      if (!response.ok) {
+        throw new Error("Error al registrar el usuario en el servidor");
+      }
+
+      console.log("Usuario registrado con éxito en el servidor");
+
+      // Redirigir al perfil completo
       history.push('/complete-profile');
       window.location.reload();
     } catch (error) {
-      console.error("Error al registrar con Firebase:", error);
-      //setErrorMessage(error.message);
+      console.error("Error al registrar el usuario:", error);
+      setErrorMessage('Hubo un error al registrar el usuario.');
       setShowToast(true);
     }
   };

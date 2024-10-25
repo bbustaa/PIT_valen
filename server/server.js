@@ -4,6 +4,7 @@ const mysql = require('mysql2/promise'); // Cambiamos a mysql2 para usar promesa
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
+const saltRounds = 10; // Define cuántas veces se hace el hashing, 10 es un número seguro
 const { body, validationResult } = require('express-validator'); // Para validar datos de entrada
 
 const app = express();
@@ -42,38 +43,40 @@ const pool = mysql.createPool({
 // Ruta para registrar un usuario con verificación de Firebase UID
 app.post('/register', [
     body('email').isEmail().withMessage('Debe ser un correo válido'),
-    body('firebaseUID').not().isEmpty().withMessage('UID de Firebase es necesario')
+    body('firebaseUID').not().isEmpty().withMessage('UID de Firebase es necesario'),
+    body('password').not().isEmpty().withMessage('La contraseña es obligatoria')
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, firebaseUID } = req.body;
-
-    // Debug: Verificar los datos que llegan al servidor
-    console.log('Datos recibidos para registro:', { email, firebaseUID });
+    const { email, firebaseUID, password } = req.body;
 
     try {
         // Verificar si el usuario ya existe en la base de datos
         const [existingUser] = await pool.query('SELECT * FROM owners WHERE id = ?', [firebaseUID]);
-        
-        console.log('Resultado de la búsqueda de usuario existente:', existingUser);
 
         if (existingUser.length > 0) {
             return res.status(409).json({ message: 'Este usuario ya está registrado.' });
         }
 
-        // Insertar el nuevo usuario en la base de datos
+        // Hashear (cifrar) la contraseña antes de guardarla
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+        // Insertar el nuevo usuario en la base de datos con la contraseña cifrada
         const [insertResult] = await pool.query(
-            'INSERT INTO owners (email, id) VALUES (?, ?)',
-            [email, firebaseUID]
+            'INSERT INTO owners (email, id, password) VALUES (?, ?, ?)',
+            [email, firebaseUID, hashedPassword]
         );
 
-        // Debug: Verificar el resultado de la inserción
-        console.log('Resultado de la inserción del usuario:', insertResult);
-
-        res.status(201).json({ message: 'Usuario registrado correctamente.', data: insertResult });
+        res.status(201).json({ 
+            message: 'Usuario registrado correctamente.',
+            user: {
+                email: email,
+                id: firebaseUID
+            }
+        });
     } catch (error) {
         console.error('Error al registrar el usuario:', error);
         res.status(500).json({ error: 'Error interno del servidor' });

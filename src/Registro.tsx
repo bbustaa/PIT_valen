@@ -26,43 +26,47 @@ const Register: React.FC = () => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (password !== confirmPassword) {
-      setErrorMessage("Las contraseñas no coinciden.");
-      setShowToast(true);
-      return;
+        setErrorMessage("Las contraseñas no coinciden.");
+        setShowToast(true);
+        return;
     }
 
     try {
-      // Registrar en Firebase
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const firebaseUID = userCredential.user.uid;
-      console.log("Usuario registrado con Firebase:", firebaseUID);
-      // Guardar el UID en el localStorage
-      localStorage.setItem('id', firebaseUID);
+        // Registrar en Firebase
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const firebaseUID = userCredential.user.uid;
+        console.log("Usuario registrado con Firebase:", firebaseUID);
 
-      // Enviar el UID y el email al backend para almacenarlo en MySQL
-      const response = await fetch('http://localhost:5000/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, firebaseUID })
-      });
+        // Enviar el UID y el email al backend para almacenarlo en MySQL
+        const response = await fetch('http://localhost:5000/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, firebaseUID, password }) // Enviar la contraseña también
+        });
 
-      if (!response.ok) {
-        throw new Error("Error al registrar el usuario en el servidor");
-      }
+        if (!response.ok) {
+            throw new Error("Error al registrar el usuario en el servidor");
+        }
 
-      console.log("Usuario registrado con éxito en el servidor");
+        // Obtener la respuesta del servidor (email y UID)
+        const data = await response.json();
+        console.log("Usuario registrado con éxito en el servidor:", data);
 
-      // Redirigir al perfil completo
-      history.push('/complete-profile');
-      window.location.reload();
+        // Guardar el UID (id) en localStorage
+        localStorage.setItem('id', firebaseUID);
+        console.log("ID guardado en localStorage:", firebaseUID);
+
+        // Redirigir al perfil completo
+        history.push('/complete-profile');
+        window.location.reload();
     } catch (error) {
-      console.error("Error al registrar el usuario:", error);
-      setErrorMessage('Hubo un error al registrar el usuario.');
-      setShowToast(true);
+        console.error("Error al registrar el usuario:", error);
+        setErrorMessage('Hubo un error al registrar el usuario.');
+        setShowToast(true);
     }
-  };
+};
 
   return (
     <IonPage>

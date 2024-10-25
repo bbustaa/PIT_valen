@@ -44,33 +44,30 @@ const Login: React.FC = () => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
   
-      // Verificar qué datos tiene 'user'
-      console.log("Datos del usuario después del login con Google:", user);
-  
-      // Verificamos que el email está disponible
       if (!user || !user.email) {
         throw new Error('No se pudo obtener el correo electrónico de la cuenta de Google.');
       }
   
-      // Obtén el UID de Firebase
       const firebaseUID = user.uid;
-      console.log("UID de Firebase:", firebaseUID);
-  
-      // Creamos un objeto con la información obtenida de Google
       const userData = {
         email: user.email,
-        firebaseUID: firebaseUID // Incluye el UID en el objeto
+        firebaseUID: firebaseUID
       };
   
-      // Enviamos esta información al servidor
+      // Enviar la información al servidor
       const response = await axios.post<LoginResponse>('http://localhost:5000/register-google', userData);
   
-      console.log('Respuesta completa del servidor:', response);
-  
-      // Si el usuario ya existe (409), redirigir a /home
-      if (response.status === 200 || response.status === 409) {
-        const { email, id, nombre, apellido1, apellido2, direccion } = response.data.user;
-        // Almacenar en el LocalStorage
+      // Verificamos si es un usuario existente o nuevo
+      if (response.status === 201) {
+        // Usuario nuevo registrado
+        localStorage.setItem('id', response.data.user.id);
+        history.push('/complete-profile');
+        window.location.reload();
+      }
+    } catch (error: any) {
+      if (error.response && error.response.status === 409) {
+        // Si ya está registrado (status 409), manejarlo sin tratarlo como un error
+        const { email, id, nombre, apellido1, apellido2, direccion } = error.response.data.user;
         localStorage.setItem('userEmail', email || '');
         localStorage.setItem('id', id || '');
         localStorage.setItem('nombre', nombre || '');
@@ -79,21 +76,13 @@ const Login: React.FC = () => {
         localStorage.setItem('direccion', direccion || '');
         history.push('/home');
         window.location.reload();
-      } else if (response.status === 201) {
-        console.log('Usuario nuevo:', response.data.user);
-        // Si es un nuevo usuario, redirigir a completar perfil
-        localStorage.setItem('id', response.data.user.id);
-        history.push('/complete-profile');
-        window.location.reload();
+      } else {
+        console.error('Error al iniciar sesión con Google:', error);
+        setToastMessage('Error al iniciar sesión con Google.');
+        setShowToast(true);
       }
-  
-    } catch (error: any) {
-      console.error('Error al iniciar sesión con Google:', error);
-      setToastMessage('Error al iniciar sesión con Google.');
-      setShowToast(true);
     }
-  };
-  
+  };  
 
   // Login con correo y contraseña
   const loginWithEmail = async (e: React.FormEvent) => {

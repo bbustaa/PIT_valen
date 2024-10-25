@@ -33,22 +33,22 @@ const AddPet: React.FC = () => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const id_owner = localStorage.getItem('id_owner');
+    const id = localStorage.getItem('id');
     
-    if (!id_owner) {
-      console.error('id_owner no encontrado en localStorage');
+    if (!id) {
+      console.error('id no encontrado en localStorage');
       setToastMessage("Error: No se encontró el ID del dueño.");
       setShowToast(true);
       return;
     }
 
-    console.log("Datos enviados a /add-pet:", { pets, id_owner });
+    console.log("Datos enviados a /add-pet:", { pets, id });
 
     try {
       const response = await fetch("http://localhost:5000/add-pet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pets, id_owner }),
+        body: JSON.stringify({ pets, id }),  // Enviar "id" en lugar de "id_owner"
       });
 
       if (!response.ok) {
@@ -66,6 +66,7 @@ const AddPet: React.FC = () => {
       setShowToast(true);
     }
   };
+
 
   const handleNoPets = () => {
     history.push('/home');

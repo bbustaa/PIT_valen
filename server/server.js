@@ -152,9 +152,9 @@ app.post('/registrar-usuario', async (req, res) => {
 
 // Ruta para añadir mascotas
 app.post('/add-pet', async (req, res) => {
-    const { pets, id_owner } = req.body;  // Asegúrate de que estás obteniendo el array de mascotas y el id_owner correctamente
+    const { pets, id } = req.body;  // Cambiamos id_owner por id
     
-    if (!id_owner) {
+    if (!id) {
         return res.status(400).json({ message: "ID del dueño no encontrado." });
     }
 
@@ -166,17 +166,16 @@ app.post('/add-pet', async (req, res) => {
         for (const pet of pets) {
             const { nombre, tipo_mascota, foto, descripcion } = pet;
 
-            // Asegúrate de tener los datos obligatorios
             if (!nombre || !tipo_mascota) {
                 return res.status(400).json({ message: "Faltan datos obligatorios de la mascota." });
             }
 
-            // Inserción en la base de datos (ejemplo)
             const query = `
                 INSERT INTO mascotas (id_owner, nombre, tipo_mascota, foto, descripcion)
                 VALUES (?, ?, ?, ?, ?)
             `;
-            await connection.query(query, [id_owner, nombre, tipo_mascota, foto || null, descripcion || null]);
+
+            await pool.query(query, [id, nombre, tipo_mascota, foto || null, descripcion || null]);
         }
 
         res.status(201).json({ message: "Mascotas añadidas exitosamente." });
@@ -185,6 +184,7 @@ app.post('/add-pet', async (req, res) => {
         res.status(500).json({ error: "Error al añadir las mascotas." });
     }
 });
+
 
 // Ruta para registrar un usuario con verificación de Firebase UID
 app.post('/register-google', async (req, res) => {

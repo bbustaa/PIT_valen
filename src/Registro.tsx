@@ -36,6 +36,8 @@ const Register: React.FC = () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUID = userCredential.user.uid;
       console.log("Usuario registrado con Firebase:", firebaseUID);
+      // Guardar el UID en el localStorage
+      localStorage.setItem('id', firebaseUID);
 
       // Enviar el UID y el email al backend para almacenarlo en MySQL
       const response = await fetch('http://localhost:5000/register', {

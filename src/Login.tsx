@@ -39,6 +39,7 @@ const Login: React.FC = () => {
   const [toastMessage, setToastMessage] = useState('');
   const [showResetPassword, setShowResetPassword] = useState(false);
 
+  // Login con Google
   const loginWithGoogle = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -121,7 +122,6 @@ const Login: React.FC = () => {
       }
     }
 };
-
   
   const resetPassword = async () => {
     if (!email) {

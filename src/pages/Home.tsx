@@ -20,7 +20,8 @@ import {
 } from '@ionic/react';
 import { add } from 'ionicons/icons';
 import AddCardForm from './AddCardForm';
-import './Home.css'; 
+import Chat from '../components/Chat';
+import './Home.css';
 
 interface HomeProps {
   onLogout: () => void;
@@ -43,6 +44,10 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
   const [showAddCardForm, setShowAddCardForm] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [showChat, setShowChat] = useState(false);
+
+  const currentUserId = localStorage.getItem('id') || '';
 
   // Cargar tarjetas desde la base de datos al iniciar
   useEffect(() => {
@@ -66,7 +71,7 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
       content,
       color: 'tertiary',
       imageUrl,
-      owner_id: localStorage.getItem('id') || ''
+      owner_id: currentUserId
     };
     setCards([...cards, newCard]);
     setShowAddCardForm(false);
@@ -75,6 +80,14 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
   const openModal = (card: Card) => {
     setSelectedCard(card);
     setShowModal(true);
+  };
+
+  // Manejar la apertura del chat
+  const handleOpenChat = (card: Card) => {
+    if (card.owner_id !== currentUserId) {
+      setChatId(card.owner_id);
+      setShowChat(true);
+    }
   };
 
   return (
@@ -104,7 +117,13 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
                   <IonCardTitle>{card.title}</IonCardTitle>
                   <IonCardSubtitle>{card.subtitle}</IonCardSubtitle>
                 </IonCardHeader>
-                <IonCardContent>{card.content}</IonCardContent>
+                <IonCardContent>
+                  {card.content}
+                  {/* Mostrar botón para iniciar chat si el dueño de la tarjeta es diferente al usuario actual */}
+                  {card.owner_id !== currentUserId && (
+                    <IonButton onClick={() => handleOpenChat(card)}>Iniciar Chat</IonButton>
+                  )}
+                </IonCardContent>
               </IonCard>
             ))
           ) : (
@@ -141,6 +160,13 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
             </IonCardContent>
           </IonCard>
         </IonModal>
+
+        {/* Mostrar el componente de chat si está habilitado */}
+        {showChat && chatId && (
+          <IonModal isOpen={showChat} onDidDismiss={() => setShowChat(false)}>
+            <Chat chatId={chatId} currentUserId={currentUserId} />
+          </IonModal>
+        )}
       </IonContent>
     </IonPage>
   );

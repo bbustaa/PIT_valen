@@ -6,7 +6,6 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const saltRounds = 10; // Define cuántas veces se hace el hashing, 10 es un número seguro
 const { body, validationResult } = require('express-validator'); // Para validar datos de entrada
-
 const app = express();
 const PORT = process.env.PORT || 5000; // Usar el puerto 5000 por defecto
 
@@ -380,10 +379,52 @@ app.delete('/mascotas/:id', async (req, res) => {
     }
 });
 
+// PARTE DE WEBSOCKETS PARA EL CHAT
+
+const http = require('http');
+const { Server } = require('socket.io');
+
+// Crear el servidor HTTP para usar tanto Express como Socket.IO
+const server = http.createServer(app);
+
+const io = new Server(server, {
+    cors: {
+        origin: "http://localhost:8100",
+        methods: ["GET", "POST"]
+    }
+});
+
+// Manejador de eventos de conexión de Socket.IO
+io.on('connection', (socket) => {
+    console.log('Usuario conectado:', socket.id);
+
+    // Escuchar evento para unirse a un chat específico
+    socket.on('join_chat', (chatId) => {
+        socket.join(chatId);
+        console.log(`Usuario ${socket.id} se unió al chat ${chatId}`);
+    });
+
+    // Recibir y reenviar mensajes
+    socket.on('send_message', (data) => {
+        io.to(data.chatId).emit('receive_message', data);
+    });
+
+    // Evento cuando un cliente se desconecta
+    socket.on('disconnect', () => {
+        console.log('Usuario desconectado:', socket.id);
+    });
+});
+
 // Iniciar el servidor
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
 
-
-// PARTE DE WEBSOCKETS PARA EL CHAT
+// Manejador para cerrar el servidor correctamente al recibir señal de interrupción (Ctrl + C)
+process.on('SIGINT', () => {
+    console.log("Cerrando servidor...");
+    server.close(() => {
+        console.log("Servidor cerrado.");
+        process.exit(0);
+    });
+});

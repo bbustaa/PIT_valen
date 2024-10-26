@@ -88,40 +88,46 @@ const Login: React.FC = () => {
   // Login con correo y contraseña
   const loginWithEmail = async (e: React.FormEvent) => {
     e.preventDefault(); // Prevenir el comportamiento por defecto del formulario
-    console.log('Iniciando el proceso de login...'); // Verifica que esta línea aparezca en la consola
+    console.log('Iniciando el proceso de login...');
 
     try {
       const response = await axios.post<LoginResponse>('http://localhost:5000/login', { email, password });
 
-        console.log('Respuesta recibida:', response.data); // Verificar que la respuesta llega correctamente
-        if (response.data && response.data.user) {
-            localStorage.setItem('userEmail', response.data.user.email);
-            localStorage.setItem('id', response.data.user.id);
-            localStorage.setItem('nombre', response.data.user.nombre);
-            localStorage.setItem('apellido1', response.data.user.apellido1);
-            localStorage.setItem('apellido2', response.data.user.apellido2);
-            localStorage.setItem('direccion', response.data.user.direccion);
-            history.push('/home');
-            // Refrescar la página después de la redirección
-             window.location.reload();
-        }
-    } catch (err) {
-      const error = err as any; // Convertir `unknown` a `any`
-      if (error.response && error.response.status === 404) {
+      console.log('Respuesta recibida:', response.data);
+
+      // Verificar si se recibe el usuario desde el servidor
+      if (response.data && response.data.user) {
+        // Guardar información en localStorage
+        localStorage.setItem('userEmail', response.data.user.email);
+        localStorage.setItem('id', response.data.user.id);
+        localStorage.setItem('nombre', response.data.user.nombre);
+        localStorage.setItem('apellido1', response.data.user.apellido1);
+        localStorage.setItem('apellido2', response.data.user.apellido2);
+        localStorage.setItem('direccion', response.data.user.direccion);
+
+        // Redirigir al usuario a la pantalla principal
+        history.push('/home');
+        window.location.reload();
+      }
+    } catch (err: any) {
+      console.error('Error en el login:', err);
+
+      // Manejar errores según el código de respuesta
+      if (err.response && err.response.status === 404) {
         // Si el correo no existe, redirigir a /register
         history.push('/register');
-        // Refrescar la página después de la redirección
         window.location.reload();
-      } else if (error.response && error.response.status === 401) {
+      } else if (err.response && err.response.status === 401) {
         // Si la contraseña es incorrecta
         setToastMessage('Contraseña incorrecta.');
         setShowToast(true);
       } else {
+        // Otros errores
         setToastMessage('Error al iniciar sesión.');
         setShowToast(true);
       }
     }
-};
+  };
   
   const resetPassword = async () => {
     if (!email) {

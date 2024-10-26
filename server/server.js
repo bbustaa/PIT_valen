@@ -232,27 +232,24 @@ app.post('/register-google', async (req, res) => {
     }
 });
 
-
 // Ruta para el inicio de sesión manual
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        const [results] = await connection.query('SELECT * FROM owners WHERE email = ?', [email]);
+        const [results] = await pool.query('SELECT * FROM owners WHERE email = ?', [email]);
 
         if (results.length === 0) {
             return res.status(404).json({ message: 'Correo electrónico no encontrado.' });
         }
 
         const user = results[0];
+        
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
         if (!isPasswordValid) {
             return res.status(401).json({ message: 'Contraseña incorrecta.' });
         }
-
-        // Aquí añadimos un log para verificar qué se está enviando como respuesta
-        console.log('Usuario autenticado: ', user);
 
         return res.status(200).json({
             message: 'Inicio de sesión exitoso.',

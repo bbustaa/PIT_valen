@@ -11,11 +11,12 @@ const app = express();
 const PORT = process.env.PORT || 5000; // Usar el puerto 5000 por defecto
 
 // Middleware
-// Configura CORS para permitir solicitudes desde tu frontend
+// Configura CORS para permitir solicitudes desde el frontend en el puerto 8100
 app.use(cors({
-    origin: '*',  // Reemplaza con la URL de tu aplicación
-    methods: 'GET,POST,PUT,DELETE',
-    credentials: true // Si usas cookies o autenticación basada en sesión
+    origin: 'http://localhost:8100', // Permite solicitudes desde el origen de tu aplicación frontend
+    methods: ['GET', 'POST', 'PUT', 'DELETE'], // Métodos permitidos
+    allowedHeaders: ['Content-Type', 'Authorization'], // Cabeceras permitidas
+    credentials: true // Permitir cookies y otras credenciales si es necesario
 }));
 
 // Configura las cabeceras de seguridad
@@ -250,7 +251,139 @@ app.post('/login', async (req, res) => {
     }
 });
 
+// PARTE DE VIKI
+
+// Ruta para gestionar tarjetas
+app.post('/tarjetas', async (req, res) => {
+    const { title, subtitle, content, imageUrl, owner_id } = req.body;
+
+    if (!title || !subtitle || !content || !imageUrl || !owner_id) {
+        return res.status(400).json({ message: 'Faltan datos necesarios para agregar la tarjeta' });
+    }
+
+    try {
+        const query = 'INSERT INTO tarjetas (title, subtitle, content, imageUrl, owner_id) VALUES (?, ?, ?, ?, ?)'
+        const [result] = await pool.query(query, [title, subtitle, content, imageUrl, owner_id]);
+
+        res.status(201).json({ id: result.insertId, title, subtitle, content, imageUrl, owner_id });
+    } catch (err) {
+        console.error('Error al agregar tarjeta:', err);
+        res.status(500).send('Error al agregar tarjeta');
+    }
+});
+
+app.get('/tarjetas', async (req, res) => {
+    try {
+        console.log("Solicitud para obtener tarjetas recibida");
+        const [tarjetas] = await pool.query('SELECT * FROM tarjetas');
+        console.log(tarjetas); // Verificar datos obtenidos
+        res.json(tarjetas);
+    } catch (err) {
+        console.error('Error al obtener tarjetas:', err);
+        res.status(500).send('Error al obtener tarjetas');
+    }
+});
+
+// Rutas para gestionar usuarios por ID
+app.get('/usuarios/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [usuarios] = await pool.query('SELECT * FROM owners WHERE id = ?', [id]);
+        if (usuarios.length === 0) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+        res.json(usuarios[0]);
+    } catch (err) {
+        console.error('Error al obtener usuario:', err);
+        res.status(500).send('Error al obtener usuario');
+    }
+});
+
+app.put('/usuarios/:id', async (req, res) => {
+    const { id } = req.params;
+    const { nombre, apellido1, apellido2, direccion } = req.body;
+
+    try {
+        const [result] = await pool.query(
+            'UPDATE owners SET nombre = ?, apellido1 = ?, apellido2 = ?, direccion = ? WHERE id = ?',
+            [nombre, apellido1, apellido2, direccion, id]
+        );
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+        res.status(200).json({ message: 'Usuario actualizado correctamente' });
+    } catch (err) {
+        console.error('Error al actualizar usuario:', err);
+        res.status(500).send('Error al actualizar usuario');
+    }
+});
+
+app.delete('/usuarios/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [result] = await pool.query('DELETE FROM owners WHERE id = ?', [id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+        res.status(200).json({ message: 'Usuario eliminado correctamente' });
+    } catch (err) {
+        console.error('Error al eliminar usuario:', err);
+        res.status(500).send('Error al eliminar usuario');
+    }
+});
+
+// Rutas para gestionar mascotas por ID
+app.get('/mascotas/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [mascotas] = await pool.query('SELECT * FROM mascotas WHERE id = ?', [id]);
+        if (mascotas.length === 0) {
+            return res.status(404).json({ message: 'Mascota no encontrada' });
+        }
+        res.json(mascotas[0]);
+    } catch (err) {
+        console.error('Error al obtener mascota:', err);
+        res.status(500).send('Error al obtener mascota');
+    }
+});
+
+app.put('/mascotas/:id', async (req, res) => {
+    const { id } = req.params;
+    const { nombre, tipo_mascota, descripcion } = req.body;
+
+    try {
+        const [result] = await pool.query(
+            'UPDATE mascotas SET nombre = ?, tipo_mascota = ?, descripcion = ? WHERE id = ?',
+            [nombre, tipo_mascota, descripcion, id]
+        );
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Mascota no encontrada' });
+        }
+        res.status(200).json({ message: 'Mascota actualizada correctamente' });
+    } catch (err) {
+        console.error('Error al actualizar mascota:', err);
+        res.status(500).send('Error al actualizar mascota');
+    }
+});
+
+app.delete('/mascotas/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [result] = await pool.query('DELETE FROM mascotas WHERE id = ?', [id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Mascota no encontrada' });
+        }
+        res.status(200).json({ message: 'Mascota eliminada correctamente' });
+    } catch (err) {
+        console.error('Error al eliminar mascota:', err);
+        res.status(500).send('Error al eliminar mascota');
+    }
+});
+
 // Iniciar el servidor
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
+
+
+// PARTE DE WEBSOCKETS PARA EL CHAT

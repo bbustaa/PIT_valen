@@ -134,24 +134,6 @@ app.post('/complete-profile', async (req, res) => {
         return res.status(500).json({ error: 'Error al guardar el perfil.' });
     }
 });
-  
-// Ruta para registrar un nuevo usuario
-app.post('/registrar-usuario', async (req, res) => {
-    const { id } = req.body;
-  
-    const query = 'INSERT INTO usuarios (id) VALUES (?)';
-    db.query(query, [id], (err, result) => {
-      if (err) {
-        console.error('Error ejecutando la inserción:', err);
-        return res.status(500).send('Error del servidor');
-      }
-  
-      res.json({
-        success: true,
-        message: 'Usuario registrado exitosamente'
-      });
-    });
-});
 
 // Ruta para añadir mascotas
 app.post('/add-pet', async (req, res) => {

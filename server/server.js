@@ -427,8 +427,28 @@ io.on('connection', (socket) => {
     });
 
     // Recibir y reenviar mensajes
-    socket.on('send_message', (data) => {
-        io.to(data.chatId).emit('receive_message', data);
+    socket.on('send_message', async (data) => {
+        const { chatId, sender_id, content } = data;
+
+        try {
+            // Insertar el mensaje en la base de datos
+            await pool.query(
+                `INSERT INTO mensajes (chat_id, sender_id, content) VALUES (?, ?, ?)`,
+                [chatId, sender_id, content]
+            );
+
+            // Enviar el mensaje a todos los usuarios en el mismo chat
+            io.to(chatId).emit('receive_message', data);
+        } catch (error) {
+            console.error('Error al almacenar el mensaje en la base de datos:', error);
+        }
+    });
+
+    // Evento para notificar de un nuevo chat
+    socket.on('new_chat', (data) => {
+        const { chatId, user1_id, user2_id } = data;
+        // Notificar al otro usuario
+        socket.to(user2_id).emit('new_chat_notification', { chatId, user1_id });
     });
 
     // Evento cuando un cliente se desconecta
@@ -450,3 +470,18 @@ process.on('SIGINT', () => {
         process.exit(0);
     });
 });
+
+
+// Ruta para obtener los chats de un usuario
+app.get('/mensajes/:chatId', async (req, res) => {
+    const { chatId } = req.params;
+  
+    try {
+      const [mensajes] = await pool.query('SELECT * FROM mensajes WHERE chat_id = ? ORDER BY timestamp ASC', [chatId]);
+      // Si no hay mensajes, la respuesta será una lista vacía
+      res.status(200).json(mensajes);
+    } catch (error) {
+      console.error('Error al obtener mensajes:', error);
+      res.status(500).send('Error al obtener mensajes');
+    }
+});  

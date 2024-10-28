@@ -53,7 +53,7 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
   useEffect(() => {
     const fetchCards = async () => {
       try {
-        const response = await fetch('http://localhost:3001/tarjetas');
+        const response = await fetch('http://localhost:5000/tarjetas');
         const data = await response.json();
         setCards(data);
       } catch (error) {

@@ -13,7 +13,7 @@ const AddCardForm: React.FC<AddCardFormProps> = ({ onAddCard }) => {
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   // Obtener el id_owner desde el localStorage
-  const id_owner = localStorage.getItem('id_owner');
+  const id_owner = localStorage.getItem('id');
 
   // Añadir un console.log para verificar que id_owner está disponible
   console.log('ID del dueño obtenido desde localStorage:', id_owner);
@@ -28,7 +28,7 @@ const AddCardForm: React.FC<AddCardFormProps> = ({ onAddCard }) => {
         formData.append('owner_id', id_owner);
         formData.append('image', imageFile);
   
-        const response = await fetch('http://localhost:3001/tarjetas', {
+        const response = await fetch('http://localhost:5000/tarjetas', {
           method: 'POST',
           body: formData,
         });

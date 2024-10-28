@@ -1,43 +1,65 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 
-// Definir la interfaz para el mensaje
-interface Message {
-    sender_id: string;
-    content: string;
-}
+const Chat = ({ chatId, currentUserId }) => {
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
 
-interface ChatProps {
-    chatId: string;
-    currentUserId: string;
-}
+  // Cargar mensajes al iniciar
+  useEffect(() => {
+    const fetchMessages = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/mensajes/${chatId}`);
+        setMessages(response.data); // Si es un chat nuevo, response.data será una lista vacía
+      } catch (error) {
+        console.error('Error al cargar mensajes:', error);
+      }
+    };
+    fetchMessages();
+  }, [chatId]);
 
-const Chat: React.FC<ChatProps> = ({ chatId, currentUserId }) => {
-    const [messages, setMessages] = React.useState<Message[]>([]);
-    const [newMessage, setNewMessage] = React.useState('');
+  // Manejar el envío de mensajes
+  const handleSendMessage = () => {
+    if (newMessage.trim() === '') return; // Evitar enviar mensajes vacíos
 
-    // Renderizado de mensajes
-    return (
-        <div>
-            <h2>Chat</h2>
-            <div className="messages">
-                {messages.map((message, index) => (
-                    <div
-                        key={index}
-                        className={message.sender_id === currentUserId ? 'my-message' : 'other-message'}
-                    >
-                        {message.content}
-                    </div>
-                ))}
+    const messageData = {
+      chatId,
+      sender_id: currentUserId,
+      content: newMessage,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Enviar el mensaje al servidor WebSocket y a la base de datos
+    socket.emit('send_message', messageData);
+
+    // Agregar el mensaje localmente
+    setMessages([...messages, messageData]);
+    setNewMessage('');
+  };
+
+  return (
+    <div>
+      <h2>Chat</h2>
+      <div className="messages">
+        {messages.length > 0 ? (
+          messages.map((message, index) => (
+            <div key={index} className={message.sender_id === currentUserId ? 'my-message' : 'other-message'}>
+              {message.content}
             </div>
-            <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Escribe un mensaje..."
-            />
-            <button onClick={() => {}}>Enviar</button>
-        </div>
-    );
+          ))
+        ) : (
+          <p>No hay mensajes en este chat. Sé el primero en decir algo!</p>
+        )}
+      </div>
+      <input
+        type="text"
+        value={newMessage}
+        onChange={(e) => setNewMessage(e.target.value)}
+        placeholder="Escribe un mensaje..."
+      />
+      <button onClick={handleSendMessage}>Enviar</button>
+    </div>
+  );
 };
 
 export default Chat;

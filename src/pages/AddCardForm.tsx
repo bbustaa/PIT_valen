@@ -39,7 +39,7 @@ const AddCardForm: React.FC<AddCardFormProps> = ({ onAddCard }) => {
   
         const data = await response.json();
         if (data.id) {
-          onAddCard(title, subtitle, content, data.imageUrl); // Usa la URL de la respuesta del servidor
+          onAddCard(title, subtitle, content, `http://localhost:5000${data.imageUrl}`); // Asegúrate de usar la URL completa
           setTitle('');
           setSubtitle('');
           setContent('');

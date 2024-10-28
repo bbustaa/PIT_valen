@@ -36,15 +36,17 @@ const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
+// Para las imágenes de las tarjetitas
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Configuración de multer para subir imágenes
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}${path.extname(file.originalname)}`);
-  }
+    destination: (req, file, cb) => {
+      cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+      cb(null, `${Date.now()}${path.extname(file.originalname)}`);
+    }
 });
 
 const upload = multer({ storage });
@@ -276,7 +278,7 @@ app.post('/login', async (req, res) => {
 // Ruta para gestionar tarjetas
 app.post('/tarjetas', upload.single('image'), async (req, res) => {
     const { title, subtitle, content, owner_id } = req.body;
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : '';
+    const imageUrl = req.file ? `http://localhost:5000/uploads/${req.file.filename}` : '';
   
     if (!title || !subtitle || !content || !owner_id || !req.file) {
       return res.status(400).json({ message: 'Faltan datos necesarios para agregar la tarjeta' });

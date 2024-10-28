@@ -1,64 +1,114 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import {
+  IonContent,
+  IonFooter,
+  IonButton,
+  IonIcon,
+  IonInput,
+  IonToolbar,
+  IonList,
+  IonItem,
+  IonLabel,
+  IonPage,
+} from '@ionic/react';
+import { send } from 'ionicons/icons';
 
-const Chat = ({ chatId, currentUserId }) => {
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
+interface ChatProps {
+  chatId: string;
+  currentUserId: string;
+  socket: any;
+}
 
-  // Cargar mensajes al iniciar
+interface Message {
+  chatId: string;
+  sender_id: string;
+  content: string;
+  timestamp?: string;
+}
+
+const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket }) => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState<string>('');
+
   useEffect(() => {
+    // Obtener mensajes previos del chat al cargar el componente
     const fetchMessages = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/mensajes/${chatId}`);
-        setMessages(response.data); // Si es un chat nuevo, response.data será una lista vacía
+        const response = await fetch(`http://localhost:5000/mensajes/${chatId}`);
+        const data = await response.json();
+        setMessages(data);
       } catch (error) {
-        console.error('Error al cargar mensajes:', error);
+        console.error('Error al obtener mensajes:', error);
       }
     };
+
     fetchMessages();
-  }, [chatId]);
 
-  // Manejar el envío de mensajes
-  const handleSendMessage = () => {
-    if (newMessage.trim() === '') return; // Evitar enviar mensajes vacíos
+    // Escuchar nuevos mensajes en tiempo real
+    if (socket) {
+      socket.on('receive_message', (message: Message) => {
+        if (message.chatId === chatId) {
+          setMessages((prevMessages) => [...prevMessages, message]);
+        }
+      });
+    }
 
-    const messageData = {
-      chatId,
-      sender_id: currentUserId,
-      content: newMessage,
-      timestamp: new Date().toISOString(),
+    return () => {
+      if (socket) {
+        socket.off('receive_message');
+      }
     };
+  }, [chatId, socket]);
 
-    // Enviar el mensaje al servidor WebSocket y a la base de datos
-    socket.emit('send_message', messageData);
-
-    // Agregar el mensaje localmente
-    setMessages([...messages, messageData]);
-    setNewMessage('');
+  // Manejar el envío de un nuevo mensaje
+  const handleSendMessage = () => {
+    if (newMessage.trim() !== '') {
+      const message: Message = {
+        chatId,
+        sender_id: currentUserId,
+        content: newMessage,
+      };
+      socket.emit('send_message', message);
+      setMessages((prevMessages) => [...prevMessages, message]);
+      setNewMessage('');
+    }
   };
 
   return (
-    <div>
-      <h2>Chat</h2>
-      <div className="messages">
-        {messages.length > 0 ? (
-          messages.map((message, index) => (
-            <div key={index} className={message.sender_id === currentUserId ? 'my-message' : 'other-message'}>
-              {message.content}
-            </div>
-          ))
-        ) : (
-          <p>No hay mensajes en este chat. Sé el primero en decir algo!</p>
-        )}
-      </div>
-      <input
-        type="text"
-        value={newMessage}
-        onChange={(e) => setNewMessage(e.target.value)}
-        placeholder="Escribe un mensaje..."
-      />
-      <button onClick={handleSendMessage}>Enviar</button>
-    </div>
+    <IonPage>
+      <IonContent>
+        <IonList>
+          {messages.map((message, index) => (
+            <IonItem key={index} lines="none">
+              <IonLabel>
+                <p>
+                  <strong>{message.sender_id === currentUserId ? 'Tú' : 'Otro'}:</strong> {message.content}
+                </p>
+              </IonLabel>
+            </IonItem>
+          ))}
+          {messages.length === 0 && (
+            <IonItem lines="none">
+              <IonLabel>No hay mensajes en este chat. Sé el primero en decir algo!</IonLabel>
+            </IonItem>
+          )}
+        </IonList>
+      </IonContent>
+      <IonFooter>
+        <IonToolbar>
+          <IonInput
+            value={newMessage}
+            placeholder="Escribe un mensaje..."
+            onIonChange={(e) => setNewMessage(e.detail.value!)}
+            slot="start"
+            clearInput
+          />
+          <IonButton slot="end" color="primary" onClick={handleSendMessage}>
+            <IonIcon icon={send} />
+          </IonButton>
+        </IonToolbar>
+      </IonFooter>
+    </IonPage>
   );
 };
 

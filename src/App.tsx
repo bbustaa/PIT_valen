@@ -2,6 +2,7 @@ import { Redirect, Route } from 'react-router-dom';
 import { IonApp, IonRouterOutlet, setupIonicReact } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import Home from './pages/Home';
+import MessagesInbox from './pages/MessagesInbox';
 import Login from './Login'; 
 import Register from './Registro';
 import CompleteProfile from './CompleteProfile';
@@ -69,6 +70,9 @@ const App: React.FC = () => {
           <Route exact path="/home">
             {isUserRegistered ? <Home /> : <Redirect to="/complete-profile" />}
           </Route>
+            
+          {/* Ruta de Mensajes */}
+          <Route path="/messages" component={MessagesInbox} exact />
 
           {/* Ruta raíz que redirige a Login */}
           <Route exact path="/">

@@ -487,3 +487,20 @@ app.get('/mensajes/:chatId', async (req, res) => {
       res.status(500).send('Error al obtener mensajes');
     }
 });  
+
+// Ruta para obtener los chats de un usuario
+app.get('/chats/:userId', async (req, res) => {
+    const { userId } = req.params;
+  
+    try {
+      const [chats] = await pool.query(
+        'SELECT * FROM chats WHERE user1_id = ? OR user2_id = ?',
+        [userId, userId]
+      );
+      res.status(200).json(chats);
+    } catch (error) {
+      console.error('Error al obtener los chats del usuario:', error);
+      res.status(500).json({ error: 'Error al obtener los chats' });
+    }
+});
+  

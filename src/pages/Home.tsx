@@ -18,7 +18,7 @@ import {
   IonCardSubtitle,
   IonCardContent,
 } from '@ionic/react';
-import { add, chatbubbles } from 'ionicons/icons'; // Añadir icono para mensajería
+import { add, chatbubbles, paperPlane } from 'ionicons/icons'; // Añadir icono para mensajería
 import AddCardForm from './AddCardForm';
 import Chat from '../components/Chat';
 import MessagesInbox from './MessagesInbox';
@@ -45,6 +45,10 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
   const [cards, setCards] = useState<Card[]>([]);
   const [showAddCardForm, setShowAddCardForm] = useState(false);
   const [showMessagesInbox, setShowMessagesInbox] = useState(false);
+  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [showCardModal, setShowCardModal] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [chatId, setChatId] = useState<string | null>(null);
 
   const currentUserId = localStorage.getItem('id') || '';
 
@@ -76,6 +80,18 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
     setShowAddCardForm(false);
   };
 
+  const openCardModal = (card: Card) => {
+    setSelectedCard(card);
+    setShowCardModal(true);
+  };
+
+  const handleOpenChat = (card: Card) => {
+    if (card.owner_id !== currentUserId) {
+      setChatId(card.owner_id);
+      setShowChat(true);
+    }
+  };
+
   return (
     <IonPage>
       <IonHeader>
@@ -93,7 +109,7 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
         <div className="card-container">
           {cards.length > 0 ? (
             cards.map((card) => (
-              <IonCard key={card.id} className="custom-card" color={card.color}>
+              <IonCard key={card.id} className="custom-card" color={card.color} onClick={() => openCardModal(card)}>
                 <IonImg src={card.imageUrl} alt="Imagen de la tarjeta" />
                 <IonCardHeader>
                   <IonCardTitle>{card.title}</IonCardTitle>
@@ -121,13 +137,51 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
 
         {/* Modal para mostrar la lista de chats (buzón de mensajes) */}
         <IonModal isOpen={showMessagesInbox} onDidDismiss={() => setShowMessagesInbox(false)}>
-          <MessagesInbox currentUserId={currentUserId} socket={socket} />
+          <IonContent>
+            <MessagesInbox currentUserId={currentUserId} socket={socket} />
+          </IonContent>
         </IonModal>
 
         {/* Formulario para añadir tarjeta */}
         <IonModal isOpen={showAddCardForm} onDidDismiss={() => setShowAddCardForm(false)}>
-          <AddCardForm onAddCard={handleAddCard} />
+          <IonContent>
+            <AddCardForm onAddCard={handleAddCard} />
+          </IonContent>
         </IonModal>
+
+        {/* Modal para mostrar el contenido de una tarjeta */}
+        <IonModal isOpen={showCardModal} onDidDismiss={() => setShowCardModal(false)}>
+          <IonContent>
+            {selectedCard && (
+              <IonCard>
+                <IonImg src={selectedCard.imageUrl} alt="Imagen de la tarjeta" />
+                <IonCardHeader>
+                  <IonCardTitle>{selectedCard.title}</IonCardTitle>
+                  <IonCardSubtitle>{selectedCard.subtitle}</IonCardSubtitle>
+                </IonCardHeader>
+                <IonCardContent>
+                  <p>{selectedCard.content}</p>
+                  {selectedCard.owner_id !== currentUserId && (
+                    <IonButton expand="block" onClick={() => handleOpenChat(selectedCard)}>
+                      <IonIcon icon={paperPlane} slot="start" />
+                      Iniciar Chat
+                    </IonButton>
+                  )}
+                </IonCardContent>
+                <IonButton onClick={() => setShowCardModal(false)}>Cerrar</IonButton>
+              </IonCard>
+            )}
+          </IonContent>
+        </IonModal>
+
+        {/* Modal para mostrar el chat */}
+        {showChat && chatId && (
+          <IonModal isOpen={showChat} onDidDismiss={() => setShowChat(false)}>
+            <IonContent>
+              <Chat chatId={chatId} currentUserId={currentUserId} socket={socket} />
+            </IonContent>
+          </IonModal>
+        )}
       </IonContent>
     </IonPage>
   );

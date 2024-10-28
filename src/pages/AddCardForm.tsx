@@ -10,51 +10,41 @@ const AddCardForm: React.FC<AddCardFormProps> = ({ onAddCard }) => {
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [content, setContent] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
-  
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
   // Obtener el id_owner desde el localStorage
-  const owner_id = localStorage.getItem('id');
+  const id_owner = localStorage.getItem('id_owner');
 
   // Añadir un console.log para verificar que id_owner está disponible
-  console.log('ID del dueño obtenido desde localStorage:', owner_id);
+  console.log('ID del dueño obtenido desde localStorage:', id_owner);
 
   const handleAddCard = async () => {
-    if (title && subtitle && content && imageUrl && owner_id) {
+    if (title && subtitle && content && imageFile && id_owner) {
       try {
-        console.log('Datos enviados al backend:', {
-          title,
-          subtitle,
-          content,
-          imageUrl,
-          owner_id
-        });
-
-        const response = await fetch('http://localhost:5000/tarjetas', {
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('subtitle', subtitle);
+        formData.append('content', content);
+        formData.append('owner_id', id_owner);
+        formData.append('image', imageFile);
+  
+        const response = await fetch('http://localhost:3001/tarjetas', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title,
-            subtitle,
-            content,
-            imageUrl,
-            owner_id
-          }),
+          body: formData,
         });
-
+  
         if (!response.ok) {
           throw new Error('Error en la respuesta de la API');
         }
-
+  
         const data = await response.json();
         if (data.id) {
-          onAddCard(title, subtitle, content, imageUrl);
+          onAddCard(title, subtitle, content, data.imageUrl); // Usa la URL de la respuesta del servidor
           setTitle('');
           setSubtitle('');
           setContent('');
-          setImageUrl('');
-          setIsOpen(false); // Cerrar el formulario después de agregar la tarjeta
+          setImageFile(null);
+          setIsOpen(false);
         } else {
           console.error(data.message);
         }
@@ -65,28 +55,40 @@ const AddCardForm: React.FC<AddCardFormProps> = ({ onAddCard }) => {
       console.error('Todos los campos son requeridos');
     }
   };
+  
 
   return (
-    <IonModal isOpen={isOpen} onDidDismiss={() => setIsOpen(false)}>
+    <>
       <IonItem>
         <IonLabel position="floating">Card Title</IonLabel>
-        <IonInput value={title} onIonChange={e => setTitle(e.detail.value!)} />
+        <IonInput value={title} onIonChange={(e) => setTitle(e.detail.value!)} />
       </IonItem>
       <IonItem>
         <IonLabel position="floating">Card Subtitle</IonLabel>
-        <IonInput value={subtitle} onIonChange={e => setSubtitle(e.detail.value!)} />
+        <IonInput value={subtitle} onIonChange={(e) => setSubtitle(e.detail.value!)} />
       </IonItem>
       <IonItem>
         <IonLabel position="floating">Card Content</IonLabel>
-        <IonInput value={content} onIonChange={e => setContent(e.detail.value!)} />
+        <IonInput value={content} onIonChange={(e) => setContent(e.detail.value!)} />
       </IonItem>
       <IonItem>
-        <IonLabel position="floating">Image URL</IonLabel>
-        <IonInput value={imageUrl} onIonChange={e => setImageUrl(e.detail.value!)} />
+        <IonLabel position="stacked">Image File</IonLabel>
+        <input
+          type="file"
+          onChange={(e) => {
+            if (e.target.files && e.target.files.length > 0) {
+              setImageFile(e.target.files[0]);
+            }
+          }}
+        />
       </IonItem>
-      <IonButton expand="full" onClick={handleAddCard}>Add Card</IonButton>
-      <IonButton expand="full" color="medium" onClick={() => setIsOpen(false)}>Cancel</IonButton>
-    </IonModal>
+      <IonButton expand="full" onClick={handleAddCard}>
+        Add Card
+      </IonButton>
+      <IonButton expand="full" color="medium" onClick={() => setIsOpen(false)}>
+        Cancel
+      </IonButton>
+    </>
   );
 };
 

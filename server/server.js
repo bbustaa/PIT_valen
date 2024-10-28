@@ -8,6 +8,9 @@ const saltRounds = 10; // Define cuántas veces se hace el hashing, 10 es un nú
 const { body, validationResult } = require('express-validator'); // Para validar datos de entrada
 const app = express();
 const PORT = process.env.PORT || 5000; // Usar el puerto 5000 por defecto
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 
 // Middleware
 // Configura CORS para permitir solicitudes desde el frontend en el puerto 8100
@@ -27,6 +30,24 @@ app.use(function(req, res, next) {
 
 // Configura el body parser para leer los datos del cliente 
 app.use(bodyParser.json());
+
+// Configurar directorio de carga de archivos
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+// Configuración de multer para subir imágenes
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}${path.extname(file.originalname)}`);
+  }
+});
+
+const upload = multer({ storage });
 
 // Configura el pool de conexiones a la base de datos
 const pool = mysql.createPool({
@@ -253,21 +274,22 @@ app.post('/login', async (req, res) => {
 // PARTE DE VIKI
 
 // Ruta para gestionar tarjetas
-app.post('/tarjetas', async (req, res) => {
-    const { title, subtitle, content, imageUrl, owner_id } = req.body;
-
-    if (!title || !subtitle || !content || !imageUrl || !owner_id) {
-        return res.status(400).json({ message: 'Faltan datos necesarios para agregar la tarjeta' });
+app.post('/tarjetas', upload.single('image'), async (req, res) => {
+    const { title, subtitle, content, owner_id } = req.body;
+    const imageUrl = req.file ? `/uploads/${req.file.filename}` : '';
+  
+    if (!title || !subtitle || !content || !owner_id || !req.file) {
+      return res.status(400).json({ message: 'Faltan datos necesarios para agregar la tarjeta' });
     }
-
+  
     try {
-        const query = 'INSERT INTO tarjetas (title, subtitle, content, imageUrl, owner_id) VALUES (?, ?, ?, ?, ?)'
-        const [result] = await pool.query(query, [title, subtitle, content, imageUrl, owner_id]);
-
-        res.status(201).json({ id: result.insertId, title, subtitle, content, imageUrl, owner_id });
+      const query = 'INSERT INTO tarjetas (title, subtitle, content, imageUrl, owner_id) VALUES (?, ?, ?, ?, ?)';
+      const [result] = await pool.query(query, [title, subtitle, content, imageUrl, owner_id]);
+  
+      res.status(201).json({ id: result.insertId, title, subtitle, content, imageUrl, owner_id });
     } catch (err) {
-        console.error('Error al agregar tarjeta:', err);
-        res.status(500).send('Error al agregar tarjeta');
+      console.error('Error al agregar tarjeta:', err);
+      res.status(500).send('Error al agregar tarjeta');
     }
 });
 

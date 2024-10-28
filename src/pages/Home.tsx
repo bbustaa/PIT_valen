@@ -8,15 +8,15 @@ import {
   IonButtons,
   IonButton,
   IonCard,
-  IonCardContent,
   IonCardHeader,
-  IonCardSubtitle,
   IonCardTitle,
   IonFab,
   IonFabButton,
   IonIcon,
   IonModal,
-  IonImg
+  IonImg,
+  IonCardSubtitle,
+  IonCardContent
 } from '@ionic/react';
 import { add } from 'ionicons/icons';
 import AddCardForm from './AddCardForm';
@@ -53,7 +53,7 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
   useEffect(() => {
     const fetchCards = async () => {
       try {
-        const response = await fetch('http://localhost:5000/tarjetas');
+        const response = await fetch('http://localhost:3001/tarjetas');
         const data = await response.json();
         setCards(data);
       } catch (error) {
@@ -76,6 +76,7 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
     setCards([...cards, newCard]);
     setShowAddCardForm(false);
   };
+  
 
   const openModal = (card: Card) => {
     setSelectedCard(card);
@@ -113,17 +114,10 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
                 color={card.color}
                 onClick={() => openModal(card)}
               >
+                <IonImg src={card.imageUrl} alt="Imagen de la tarjeta" />
                 <IonCardHeader>
                   <IonCardTitle>{card.title}</IonCardTitle>
-                  <IonCardSubtitle>{card.subtitle}</IonCardSubtitle>
                 </IonCardHeader>
-                <IonCardContent>
-                  {card.content}
-                  {/* Mostrar botón para iniciar chat si el dueño de la tarjeta es diferente al usuario actual */}
-                  {card.owner_id !== currentUserId && (
-                    <IonButton onClick={() => handleOpenChat(card)}>Iniciar Chat</IonButton>
-                  )}
-                </IonCardContent>
               </IonCard>
             ))
           ) : (
@@ -139,7 +133,9 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
         </IonFab>
 
         {/* Formulario para añadir tarjeta */}
-        {showAddCardForm && <AddCardForm onAddCard={handleAddCard} />}
+        <IonModal isOpen={showAddCardForm} onDidDismiss={() => setShowAddCardForm(false)}>
+          <AddCardForm onAddCard={handleAddCard} />
+        </IonModal>
 
         {/* Modal para mostrar los detalles de una tarjeta */}
         <IonModal isOpen={showModal} onDidDismiss={() => setShowModal(false)}>
@@ -149,16 +145,21 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
               <IonButton slot="end" onClick={() => setShowModal(false)}>Cerrar</IonButton>
             </IonToolbar>
           </IonHeader>
-          <IonCard>
-            <IonCardHeader>
-              <IonCardTitle>{selectedCard?.title}</IonCardTitle>
-              <IonCardSubtitle>{selectedCard?.subtitle}</IonCardSubtitle>
-            </IonCardHeader>
-            <IonCardContent>
-              <IonImg src={selectedCard?.imageUrl} alt="Imagen de la tarjeta" />
-              <p>{selectedCard?.content}</p>
-            </IonCardContent>
-          </IonCard>
+          {selectedCard && (
+            <IonCard>
+              <IonCardHeader>
+                <IonCardTitle>{selectedCard.title}</IonCardTitle>
+                <IonCardSubtitle>{selectedCard.subtitle}</IonCardSubtitle>
+              </IonCardHeader>
+              <IonCardContent>
+                <IonImg src={selectedCard.imageUrl} alt="Imagen de la tarjeta" />
+                <p>{selectedCard.content}</p>
+                {selectedCard.owner_id !== currentUserId && (
+                  <IonButton onClick={() => handleOpenChat(selectedCard)}>Iniciar Chat</IonButton>
+                )}
+              </IonCardContent>
+            </IonCard>
+          )}
         </IonModal>
 
         {/* Mostrar el componente de chat si está habilitado */}

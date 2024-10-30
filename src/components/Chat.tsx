@@ -34,6 +34,9 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }
   const [newMessage, setNewMessage] = useState<string>('');
 
   useEffect(() => {
+    // Unirse al chat
+    socket.emit('join_chat', chatId);
+
     // Recuperar los mensajes del chat cuando el componente se monta
     const fetchMessages = async () => {
       try {
@@ -47,9 +50,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }
 
     fetchMessages();
 
-    // Unirse al chat y escuchar mensajes entrantes
-    socket.emit('join_chat', chatId);
-
+    // Manejar la recepción de nuevos mensajes
     const handleReceiveMessage = (message: Message) => {
       if (message.chatId === chatId) {
         setMessages((prevMessages) => [...prevMessages, message]);
@@ -61,7 +62,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }
     // Limpiar los eventos al desmontar el componente
     return () => {
       socket.off('receive_message', handleReceiveMessage);
-      socket.emit('leave_chat', chatId); // Dejar el chat para evitar duplicaciones
+      socket.emit('leave_chat', chatId);
     };
   }, [chatId, socket]);
 
@@ -77,9 +78,9 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }
 
       setNewMessage('');
 
+      // Emitir el mensaje al servidor y añadirlo a la lista de mensajes localmente
       socket.emit('send_message', { ...message, receiver_id: receiverId }, (ack: any) => {
-        if (ack && ack.success) {
-          // El servidor confirma que el mensaje se envió exitosamente
+        if (ack?.success) {
           setMessages((prevMessages) => [...prevMessages, message]);
         }
       });

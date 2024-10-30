@@ -1,0 +1,40 @@
+.message-item {
+    margin: 10px 0;
+  }
+  
+  .message-item.me {
+    text-align: right;
+    justify-content: flex-end;
+    background-color: #d1e7dd; /* Color para los mensajes propios */
+    border-radius: 15px;
+    padding: 10px;
+    margin-left: auto; /* Mueve los mensajes hacia la derecha */
+  }
+  
+  .message-item.other {
+    text-align: left;
+    justify-content: flex-start;
+    background-color: #f8d7da; /* Color para los mensajes de otros usuarios */
+    border-radius: 15px;
+    padding: 10px;
+    margin-right: auto; /* Mueve los mensajes hacia la izquierda */
+  }
+  
+  .message-label {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .message-sender {
+    font-weight: bold;
+  }
+  
+  .message-content {
+    margin: 5px 0;
+  }
+  
+  .message-timestamp {
+    font-size: 0.8em;
+    color: #6c757d;
+  }
+  

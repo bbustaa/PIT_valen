@@ -13,6 +13,7 @@ import {
 } from '@ionic/react';
 import { send } from 'ionicons/icons';
 import socket from '../pages/socket';
+import './Chat.css'; // Importar archivo CSS para los estilos
 
 interface ChatProps {
   chatId: string;
@@ -94,18 +95,27 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId }) => {
       <IonContent>
         <IonList>
           {messages.map((message) => (
-            <IonItem key={message.id} lines="none">
-              <IonLabel>
-                <p>
-                  <strong>{message.sender_id === currentUserId ? 'Tú' : message.sender_name}:</strong> {message.content}
+            <IonItem
+              key={message.id}
+              lines="none"
+              className={
+                message.sender_id === currentUserId ? 'message-item me' : 'message-item other'
+              }
+            >
+              <IonLabel className="message-label">
+                <p className="message-sender">
+                  <strong>{message.sender_id === currentUserId ? 'Tú' : message.sender_name}:</strong>
                 </p>
-                <small>{new Date(message.timestamp!).toLocaleTimeString()}</small>
+                <p className="message-content">{message.content}</p>
+                <small className="message-timestamp">
+                  {new Date(message.timestamp!).toLocaleTimeString()}
+                </small>
               </IonLabel>
             </IonItem>
           ))}
           {messages.length === 0 && (
             <IonItem lines="none">
-              <IonLabel>No hay mensajes en este chat. Sé el primero en decir algo!</IonLabel>
+              <IonLabel>No hay mensajes en este chat. ¡Sé el primero en decir algo!</IonLabel>
             </IonItem>
           )}
         </IonList>

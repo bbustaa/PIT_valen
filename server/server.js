@@ -428,54 +428,54 @@ io.on('connection', (socket) => {
     });
   
     socket.on('send_message', async (data) => {
-      const { chatId, sender_id, content, receiver_id } = data;
-  
-      try {
-        // Verificar si ya existe un chat entre estos dos usuarios
-        let [existingChat] = await pool.query(
+        const { chatId, sender_id, content, receiver_id } = data;
+      
+        try {
+          // Verificar si ya existe un chat entre estos dos usuarios
+          let [existingChat] = await pool.query(
             'SELECT * FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)',
             [sender_id, receiver_id, receiver_id, sender_id]
-        );
-  
-        // Si el chat no existe, crearlo
-        if (existingChat.length === 0) {
+          );
+      
+          // Si el chat no existe, crearlo
+          if (existingChat.length === 0) {
             console.log('El chat no existe, creando un nuevo chat...');
             if (!receiver_id) {
-            console.error('Error: receiver_id no está definido');
-            return;
+              console.error('Error: receiver_id no está definido');
+              return;
             }
             const [newChat] = await pool.query(
-            'INSERT INTO chats (user1_id, user2_id) VALUES (?, ?)',
-            [sender_id, receiver_id]
+              'INSERT INTO chats (user1_id, user2_id) VALUES (?, ?)',
+              [sender_id, receiver_id]
             );
             data.chatId = newChat.insertId;
-        } else {
+          } else {
             data.chatId = existingChat[0].id; // Usar el id del chat existente
+          }
+      
+          // Insertar el mensaje en la base de datos usando el chatId
+          const [result] = await pool.query(
+            'INSERT INTO mensajes (chat_id, sender_id, content) VALUES (?, ?, ?)',
+            [data.chatId, sender_id, content]
+          );
+      
+          if (result.affectedRows > 0) {
+            // Emitir el mensaje a todos los usuarios en el chat
+            const newMessage = {
+              id: result.insertId,
+              chatId: data.chatId,
+              sender_id,
+              content,
+              timestamp: new Date().toISOString(),
+            };
+            io.to(data.chatId).emit('receive_message', newMessage);
+          } else {
+            console.error('No se pudo insertar el mensaje en la base de datos.');
+          }
+        } catch (error) {
+          console.error('Error al insertar el mensaje:', error);
         }
-  
-        // Insertar el mensaje en la base de datos usando el chatId
-        const [result] = await pool.query(
-          'INSERT INTO mensajes (chat_id, sender_id, content) VALUES (?, ?, ?)',
-          [data.chatId, sender_id, content]
-        );
-  
-        if (result.affectedRows > 0) {
-          // Emitir el mensaje a todos los usuarios en el chat
-          const newMessage = {
-            id: result.insertId,
-            chatId: data.chatId,
-            sender_id,
-            content,
-            timestamp: new Date().toISOString(),
-          };
-          io.to(data.chatId).emit('receive_message', newMessage);
-        } else {
-          console.error('No se pudo insertar el mensaje en la base de datos.');
-        }
-      } catch (error) {
-        console.error('Error al insertar el mensaje:', error);
-      }
-    });
+      });      
   
     socket.on('disconnect', () => {
       console.log('Usuario desconectado:', socket.id);
@@ -504,6 +504,27 @@ app.get('/chats/:userId', async (req, res) => {
         res.status(500).json({ error: 'Error al obtener los chats.' });
     }
 });
+
+// Ruta para buscar chats
+app.get('/chats/find/:userId/:receiverId', async (req, res) => {
+    const { userId, receiverId } = req.params;
+  
+    try {
+      const [chats] = await pool.query(
+        'SELECT * FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)',
+        [userId, receiverId, receiverId, userId]
+      );
+  
+      if (chats.length > 0) {
+        res.status(200).json({ chatId: chats[0].id });
+      } else {
+        res.status(404).json({ message: 'No se encontró un chat existente' });
+      }
+    } catch (err) {
+      console.error('Error al buscar chat:', err);
+      res.status(500).send('Error al buscar chat');
+    }
+  });  
 
 // Iniciar el servidor
 server.listen(PORT, () => {

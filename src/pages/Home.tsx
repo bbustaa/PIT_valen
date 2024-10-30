@@ -106,14 +106,37 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
     setShowCardModal(true);
   };
 
-  const handleOpenChat = (card: Card) => {
+  const handleOpenChat = async (card: Card) => {  // <--- Añadir el tipo Card aquí
     if (card.owner_id !== currentUserId) {
-      setChatId(card.id.toString()); // Utiliza `card.id` como `chatId`
-      setReceiverId(card.owner_id); // Guardamos el receiverId para enviarlo al backend
-      setShowChat(true);
+      try {
+        // Buscar si ya existe un chat con el owner de la tarjeta
+        const response = await fetch(`http://localhost:5000/chats/find/${currentUserId}/${card.owner_id}`);
+        const data = await response.json();
+  
+        if (data.chatId) {
+          // Si ya existe un chat, usar ese chatId
+          setChatId(data.chatId);
+        } else {
+          // Si no existe, creamos un nuevo chat en el backend
+          const createChatResponse = await fetch(`http://localhost:5000/chats/create`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user1_id: currentUserId, user2_id: card.owner_id }),
+          });
+  
+          const newChatData = await createChatResponse.json();
+          setChatId(newChatData.chatId);
+        }
+        setReceiverId(card.owner_id); // Guardar el receiverId para enviar al backend
+        setShowChat(true);
+      } catch (error) {
+        console.error('Error al abrir el chat:', error);
+      }
     }
   };
-
+  
   return (
     <IonPage>
       <IonHeader>

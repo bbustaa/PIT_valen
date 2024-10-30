@@ -443,18 +443,24 @@ io.on('connection', (socket) => {
             const [result] = await pool.query(insertMessageQuery, [chatId, sender_id, content, timestamp]);
     
             if (result.affectedRows > 0) {
-                const newMessage = {
-                    id: result.insertId,
-                    chatId: chatId.toString(), 
-                    sender_id,
-                    content,
-                    timestamp,
-                };
+                // Obtener el nombre del remitente
+                const [sender] = await pool.query('SELECT nombre FROM owners WHERE id = ?', [sender_id]);
+                if (sender.length > 0) {
+                    const newMessage = {
+                        id: result.insertId,
+                        chatId: chatId.toString(),
+                        sender_id,
+                        content,
+                        timestamp,
+                        sender_name: sender[0].nombre,
+                    };
+                    console.log("Emitir mensaje a sala:", chatId, "mensaje:", newMessage);
     
-                console.log("Emitir mensaje a sala:", chatId, "mensaje:", newMessage);
-    
-                // Emitir el mensaje a todos los usuarios en la sala del chat
-                io.to(chatId.toString()).emit('receive_message', newMessage);
+                    // Emitir el mensaje a todos los usuarios en la sala del chat
+                    io.to(chatId.toString()).emit('receive_message', newMessage);
+                } else {
+                    console.error('No se pudo encontrar el usuario en la base de datos.');
+                }
             } else {
                 console.error('No se pudo insertar el mensaje en la base de datos.');
             }
@@ -522,23 +528,27 @@ app.get('/chats/find/:userId/:receiverId', async (req, res) => {
 // Ruta para obtener todos los mensajes de un chat específico
 app.get('/chats/:chatId/messages', async (req, res) => {
     const { chatId } = req.params;
-
+  
     try {
-        const [messages] = await pool.query(
-            'SELECT * FROM mensajes WHERE chat_id = ? ORDER BY timestamp ASC',
-            [chatId]
-        );
-
-        if (messages.length > 0) {
-            res.status(200).json(messages);
-        } else {
-            res.status(200).json([]); // Devolver un arreglo vacío
-        }
+      const [messages] = await pool.query(
+        `SELECT m.*, o.nombre AS sender_name 
+         FROM mensajes m 
+         JOIN owners o ON m.sender_id = o.id 
+         WHERE m.chat_id = ? 
+         ORDER BY m.timestamp ASC`,
+        [chatId]
+      );
+  
+      if (messages.length > 0) {
+        res.status(200).json(messages);
+      } else {
+        res.status(200).json([]); // Devolver un arreglo vacío si no hay mensajes
+      }
     } catch (error) {
-        console.error('Error al obtener los mensajes del chat:', error);
-        res.status(500).json({ error: 'Error al obtener los mensajes del chat.' });
+      console.error('Error al obtener los mensajes del chat:', error);
+      res.status(500).json({ error: 'Error al obtener los mensajes del chat.' });
     }
-});
+});   
 
 // Ruta para crear un nuevo chat
 app.post('/chats/create', async (req, res) => {

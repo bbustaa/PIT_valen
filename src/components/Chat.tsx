@@ -27,6 +27,7 @@ interface Message {
   sender_id: string;
   content: string;
   timestamp?: string;
+  sender_name?: string; 
 }
 
 const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId }) => {
@@ -96,8 +97,9 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId }) => {
             <IonItem key={message.id} lines="none">
               <IonLabel>
                 <p>
-                  <strong>{message.sender_id === currentUserId ? 'Tú' : 'Otro'}:</strong> {message.content}
+                  <strong>{message.sender_id === currentUserId ? 'Tú' : message.sender_name}:</strong> {message.content}
                 </p>
+                <small>{new Date(message.timestamp!).toLocaleTimeString()}</small>
               </IonLabel>
             </IonItem>
           ))}

@@ -50,17 +50,19 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }
     // Unirse al chat al montar el componente
     socket.emit('join_chat', chatId);
 
-    // Escuchar nuevos mensajes y actualizar la lista en tiempo real
-    socket.on('receive_message', (message: Message) => {
-      if (message.chatId === chatId) {
-        setMessages((prevMessages) => [...prevMessages, message]);
-      }
-    });
+    // Manejar la recepción de nuevos mensajes
+  const handleReceiveMessage = (message: Message) => {
+    if (message.chatId === chatId) {
+      setMessages((prevMessages) => [...prevMessages, message]);
+    }
+  };
 
-    // Limpiar los eventos al desmontar el componente
-    return () => {
-      socket.off('receive_message');
-    };
+  socket.on('receive_message', handleReceiveMessage);
+
+  // Limpiar los eventos al desmontar el componente
+  return () => {
+    socket.off('receive_message', handleReceiveMessage);
+  };
 }, [chatId, socket]);
 
   // Manejar el envío de un nuevo mensaje
@@ -117,4 +119,4 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }
   );
 };
 
-export default Chat;
+export default Chat; 

@@ -25,6 +25,15 @@ interface ChatItem {
   user1_id: string;
   user2_id: string;
   created_at: string;
+  lastMessage?: string; // Nuevo campo para mostrar el último mensaje
+}
+
+interface Message {
+  id: number;
+  chatId: string;
+  sender_id: string;
+  content: string;
+  timestamp?: string;
 }
 
 const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) => {
@@ -40,7 +49,6 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
         const response = await fetch(`http://localhost:5000/chats/${currentUserId}`);
         if (response.ok) {
           const data: ChatItem[] = await response.json();
-          console.log('Chats obtenidos:', data);
           setChats(data);
         } else {
           console.error('Error: No se encontraron chats para el usuario actual.');
@@ -56,35 +64,36 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
   }, [currentUserId]);
 
   useEffect(() => {
-    // Escuchar evento para notificar al usuario de un nuevo chat
-    if (socket) {
-      socket.on('new_chat_notification', (data: ChatItem) => {
-        const { id, user1_id, user2_id, created_at } = data;
-        if (user2_id === currentUserId || user1_id === currentUserId) {
-          setChats((prevChats) => [
-            ...prevChats,
-            {
-              id,
-              user1_id,
-              user2_id,
-              created_at,
-            },
-          ]);
-        }
+    // Escuchar nuevos mensajes para actualizar la lista de chats
+    const handleReceiveMessage = (message: Message) => {
+      setChats((prevChats) => {
+        const updatedChats = prevChats.map((chat) => {
+          if (chat.id.toString() === message.chatId) {
+            return {
+              ...chat,
+              lastMessage: message.content,
+            };
+          }
+          return chat;
+        });
+        return updatedChats;
       });
+    };
+
+    if (socket) {
+      socket.on('receive_message', handleReceiveMessage);
     }
 
     return () => {
       if (socket) {
-        socket.off('new_chat_notification');
+        socket.off('receive_message', handleReceiveMessage);
       }
     };
-  }, [currentUserId, socket]);
+  }, [socket]);
 
   // Función para abrir un chat seleccionado
   const openChat = (chat: ChatItem) => {
     setSelectedChatId(chat.id);
-    // Determinar el receptor basado en el usuario actual
     const receiver = chat.user1_id === currentUserId ? chat.user2_id : chat.user1_id;
     setReceiverId(receiver);
     setShowChat(true);
@@ -105,7 +114,6 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
       </IonHeader>
       <IonContent>
         {showChat && selectedChatId && receiverId ? (
-          // Mostrar la conversación si se ha seleccionado un chat
           <Chat
             chatId={selectedChatId.toString()}
             currentUserId={currentUserId}
@@ -113,15 +121,14 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
             receiverId={receiverId}
           />
         ) : (
-          // Mostrar la lista de chats si no hay chat seleccionado
           <IonList>
             {chats.length > 0 ? (
               chats.map((chat) => (
-                <IonItem
-                  key={chat.id}
-                  onClick={() => openChat(chat)}
-                >
-                  <IonLabel>{`Chat con ${chat.user1_id === currentUserId ? chat.user2_id : chat.user1_id}`}</IonLabel>
+                <IonItem key={chat.id} onClick={() => openChat(chat)}>
+                  <IonLabel>
+                    <p>{`Chat con ${chat.user1_id === currentUserId ? chat.user2_id : chat.user1_id}`}</p>
+                    {chat.lastMessage && <p className="last-message">{chat.lastMessage}</p>}
+                  </IonLabel>
                 </IonItem>
               ))
             ) : (

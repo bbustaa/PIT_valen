@@ -18,7 +18,7 @@ import {
   IonCardSubtitle,
   IonCardContent,
 } from '@ionic/react';
-import { add, chatbubbles, paperPlane } from 'ionicons/icons'; // Añadir icono para mensajería
+import { add, chatbubbles, paperPlane } from 'ionicons/icons';
 import AddCardForm from './AddCardForm';
 import Chat from '../components/Chat';
 import MessagesInbox from './MessagesInbox';
@@ -30,7 +30,6 @@ interface HomeProps {
   isAuthenticated: boolean;
 }
 
-// Definir la interfaz para la tarjeta
 interface Card {
   id: number;
   title: string;
@@ -49,6 +48,7 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
   const [showCardModal, setShowCardModal] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [chatId, setChatId] = useState<string | null>(null);
+  const [receiverId, setReceiverId] = useState<string | null>(null); // Para almacenar el ID del receptor del chat
 
   const currentUserId = localStorage.getItem('id') || '';
 
@@ -87,7 +87,8 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
 
   const handleOpenChat = (card: Card) => {
     if (card.owner_id !== currentUserId) {
-      setChatId(card.owner_id);
+      setChatId(card.id.toString()); // Utiliza `card.id` como `chatId`
+      setReceiverId(card.owner_id); // Guardamos el receiverId para enviarlo al backend
       setShowChat(true);
     }
   };
@@ -135,20 +136,6 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
           </IonFabButton>
         </IonFab>
 
-        {/* Modal para mostrar la lista de chats (buzón de mensajes) */}
-        <IonModal isOpen={showMessagesInbox} onDidDismiss={() => setShowMessagesInbox(false)}>
-          <IonContent>
-            <MessagesInbox currentUserId={currentUserId} socket={socket} />
-          </IonContent>
-        </IonModal>
-
-        {/* Formulario para añadir tarjeta */}
-        <IonModal isOpen={showAddCardForm} onDidDismiss={() => setShowAddCardForm(false)}>
-          <IonContent>
-            <AddCardForm onAddCard={handleAddCard} />
-          </IonContent>
-        </IonModal>
-
         {/* Modal para mostrar el contenido de una tarjeta */}
         <IonModal isOpen={showCardModal} onDidDismiss={() => setShowCardModal(false)}>
           <IonContent>
@@ -175,10 +162,10 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
         </IonModal>
 
         {/* Modal para mostrar el chat */}
-        {showChat && chatId && (
+        {showChat && chatId && receiverId && (
           <IonModal isOpen={showChat} onDidDismiss={() => setShowChat(false)}>
             <IonContent>
-              <Chat chatId={chatId} currentUserId={currentUserId} socket={socket} />
+              <Chat chatId={chatId} receiverId={receiverId} currentUserId={currentUserId} socket={socket} />
             </IonContent>
           </IonModal>
         )}

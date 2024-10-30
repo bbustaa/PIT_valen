@@ -31,12 +31,14 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [showChat, setShowChat] = useState<boolean>(false);
+  const [selectedCardOwnerId, setSelectedCardOwnerId] = useState<string>('');
 
   useEffect(() => {
+    // Obtener los chats existentes cuando se monta el componente
     const fetchChats = async () => {
       try {
         const response = await fetch(`http://localhost:5000/chats/${currentUserId}`);
-        const data = await response.json();
+        const data: ChatItem[] = await response.json();
         setChats(data);
       } catch (error) {
         console.error('Error al obtener los chats:', error);
@@ -45,8 +47,36 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
     fetchChats();
   }, [currentUserId]);
 
-  const openChat = (chatId: number) => {
+  useEffect(() => {
+    // Escuchar evento para notificar al usuario de un nuevo chat
+    if (socket) {
+      socket.on('new_chat_notification', (data: ChatItem) => {
+        const { id, user1_id, user2_id, created_at } = data;
+        if (user2_id === currentUserId || user1_id === currentUserId) {
+          setChats((prevChats) => [
+            ...prevChats,
+            {
+              id,
+              user1_id,
+              user2_id,
+              created_at,
+            },
+          ]);
+        }
+      });
+    }
+
+    return () => {
+      if (socket) {
+        socket.off('new_chat_notification');
+      }
+    };
+  }, [currentUserId, socket]);
+
+  // Función para abrir un chat seleccionado
+  const openChat = (chatId: number, ownerId: string) => {
     setSelectedChatId(chatId);
+    setSelectedCardOwnerId(ownerId);
     setShowChat(true);
   };
 
@@ -66,13 +96,26 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
       <IonContent>
         {showChat && selectedChatId ? (
           // Mostrar la conversación si se ha seleccionado un chat
-          <Chat chatId={selectedChatId.toString()} currentUserId={currentUserId} socket={socket} />
+          <Chat
+            chatId={selectedChatId.toString()}
+            currentUserId={currentUserId}
+           
+            socket={socket}
+          />
         ) : (
           // Mostrar la lista de chats si no hay chat seleccionado
           <IonList>
             {chats.length > 0 ? (
               chats.map((chat) => (
-                <IonItem key={chat.id} onClick={() => openChat(chat.id)}>
+                <IonItem
+                  key={chat.id}
+                  onClick={() =>
+                    openChat(
+                      chat.id,
+                      chat.user1_id === currentUserId ? chat.user2_id : chat.user1_id
+                    )
+                  }
+                >
                   <IonLabel>
                     {chat.user1_id === currentUserId
                       ? `Chat con ${chat.user2_id}`

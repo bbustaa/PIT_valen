@@ -12,11 +12,13 @@ import {
   IonPage,
 } from '@ionic/react';
 import { send } from 'ionicons/icons';
+import socket from '../pages/socket'; // Asegúrate de la ruta correcta a socket.ts
 
 interface ChatProps {
   chatId: string;
   currentUserId: string;
   socket: any;
+  receiverId?: string; // Añadir receiverId como propiedad opcional
 }
 
 interface Message {
@@ -26,40 +28,27 @@ interface Message {
   timestamp?: string;
 }
 
-const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket }) => {
+const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState<string>('');
 
   useEffect(() => {
-    // Obtener mensajes previos del chat al cargar el componente
-    const fetchMessages = async () => {
-      try {
-        const response = await fetch(`http://localhost:5000/mensajes/${chatId}`);
-        const data = await response.json();
-        setMessages(data);
-      } catch (error) {
-        console.error('Error al obtener mensajes:', error);
+    // Unirse al chat al montar el componente
+    socket.emit('join_chat', chatId);
+  
+    // Escuchar nuevos mensajes
+    socket.on('receive_message', (message: Message) => {
+      if (message.chatId === chatId) {
+        setMessages((prevMessages) => [...prevMessages, message]);
       }
-    };
-
-    fetchMessages();
-
-    // Escuchar nuevos mensajes en tiempo real
-    if (socket) {
-      socket.on('receive_message', (message: Message) => {
-        if (message.chatId === chatId) {
-          setMessages((prevMessages) => [...prevMessages, message]);
-        }
-      });
-    }
-
+    });
+  
+    // Limpiar los eventos al desmontar el componente
     return () => {
-      if (socket) {
-        socket.off('receive_message');
-      }
+      socket.off('receive_message');
     };
   }, [chatId, socket]);
-
+  
   // Manejar el envío de un nuevo mensaje
   const handleSendMessage = () => {
     if (newMessage.trim() !== '') {
@@ -68,7 +57,8 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket }) => {
         sender_id: currentUserId,
         content: newMessage,
       };
-      socket.emit('send_message', message);
+      // Emitir el mensaje junto con receiverId al backend
+      socket.emit('send_message', { ...message, receiver_id: receiverId });
       setMessages((prevMessages) => [...prevMessages, message]);
       setNewMessage('');
     }

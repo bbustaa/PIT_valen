@@ -419,69 +419,61 @@ const io = new Server(server, {
 });
 
 // Socket.IO - Evento para enviar mensajes
+// Socket.IO - Evento para enviar mensajes
 io.on('connection', (socket) => {
     console.log('Usuario conectado:', socket.id);
 
+    // Evento para unirse a una sala de chat
     socket.on('join_chat', (chatId) => {
         socket.join(chatId);
         console.log(`Usuario ${socket.id} se unió al chat ${chatId}`);
     });
 
+    // Evento para manejar el envío de mensajes
     socket.on('send_message', async (data) => {
         const { chatId, sender_id, content, receiver_id } = data;
-
+    
         try {
-            // Verificar si ya existe un chat entre estos dos usuarios
-            let [existingChat] = await pool.query(
-                'SELECT * FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)',
-                [sender_id, receiver_id, receiver_id, sender_id]
-            );
-
-            if (existingChat.length === 0) {
-                console.log('El chat no existe, creando un nuevo chat...');
-                if (!receiver_id) {
-                    console.error('Error: receiver_id no está definido');
-                    return;
-                }
-                const [newChat] = await pool.query(
-                    'INSERT INTO chats (user1_id, user2_id) VALUES (?, ?)',
-                    [sender_id, receiver_id]
-                );
-                data.chatId = newChat.insertId;
-            } else {
-                data.chatId = existingChat[0].id; // Usar el id del chat existente
-            }
-
-            // Insertar el mensaje en la base de datos usando el chatId
+            // Insertar el mensaje en la base de datos
+            const timestamp = new Date().toISOString();
             const insertMessageQuery = `
                 INSERT INTO mensajes (chat_id, sender_id, content, timestamp)
                 VALUES (?, ?, ?, ?)
             `;
-            const timestamp = new Date().toISOString();
-            const [result] = await pool.query(insertMessageQuery, [data.chatId, sender_id, content, timestamp]);
-
+            const [result] = await pool.query(insertMessageQuery, [chatId, sender_id, content, timestamp]);
+    
             if (result.affectedRows > 0) {
-                // Emitir el mensaje a todos los usuarios en el chat
                 const newMessage = {
                     id: result.insertId,
-                    chatId: data.chatId,
+                    chatId: chatId.toString(), 
                     sender_id,
                     content,
                     timestamp,
                 };
-                io.to(data.chatId).emit('receive_message', newMessage);
+    
+                console.log("Emitir mensaje a sala:", chatId, "mensaje:", newMessage);
+    
+                // Emitir el mensaje a todos los usuarios en la sala del chat
+                io.to(chatId.toString()).emit('receive_message', newMessage);
             } else {
                 console.error('No se pudo insertar el mensaje en la base de datos.');
             }
         } catch (error) {
             console.error('Error al insertar el mensaje:', error);
         }
+    });    
+
+    // Evento para dejar una sala de chat
+    socket.on('leave_chat', (chatId) => {
+        socket.leave(chatId);
+        console.log(`Usuario ${socket.id} dejó el chat ${chatId}`);
     });
 
     socket.on('disconnect', () => {
         console.log('Usuario desconectado:', socket.id);
     });
 });
+
 
 // Ruta para obtener todos los chats en los que el usuario actual esté involucrado
 app.get('/chats/:userId', async (req, res) => {

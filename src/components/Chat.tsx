@@ -29,13 +29,13 @@ interface Message {
   timestamp?: string;
 }
 
-const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }) => {
+const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState<string>('');
 
   useEffect(() => {
     // Unirse al chat
-    socket.emit('join_chat', chatId);
+    socket.emit('join_chat', chatId.toString());
 
     // Recuperar los mensajes del chat cuando el componente se monta
     const fetchMessages = async () => {
@@ -52,7 +52,8 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }
 
     // Manejar la recepción de nuevos mensajes
     const handleReceiveMessage = (message: Message) => {
-      if (message.chatId === chatId) {
+      console.log("Mensaje recibido del socket:", message);
+      if (message.chatId.toString() === chatId.toString()) {
         setMessages((prevMessages) => [...prevMessages, message]);
       }
     };

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { IonButton, IonInput, IonItem, IonLabel, IonModal } from '@ionic/react';
+import { IonButton, IonInput, IonItem, IonLabel } from '@ionic/react';
 
 interface AddCardFormProps {
   onAddCard: (title: string, subtitle: string, content: string, imageUrl: string) => void;
+  onClose: () => void; // Añadir una función para manejar el cierre del modal
 }
 
-const AddCardForm: React.FC<AddCardFormProps> = ({ onAddCard }) => {
-  const [isOpen, setIsOpen] = useState(true);
+const AddCardForm: React.FC<AddCardFormProps> = ({ onAddCard, onClose }) => {
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [content, setContent] = useState('');
@@ -44,7 +44,7 @@ const AddCardForm: React.FC<AddCardFormProps> = ({ onAddCard }) => {
           setSubtitle('');
           setContent('');
           setImageFile(null);
-          setIsOpen(false);
+          onClose(); // Cerrar el modal después de agregar la tarjeta
         } else {
           console.error(data.message);
         }
@@ -85,7 +85,7 @@ const AddCardForm: React.FC<AddCardFormProps> = ({ onAddCard }) => {
       <IonButton expand="full" onClick={handleAddCard}>
         Add Card
       </IonButton>
-      <IonButton expand="full" color="medium" onClick={() => setIsOpen(false)}>
+      <IonButton expand="full" color="medium" onClick={onClose}>
         Cancel
       </IonButton>
     </>

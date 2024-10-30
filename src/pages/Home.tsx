@@ -183,7 +183,7 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
         {/* Modal para añadir una tarjeta */}
         <IonModal isOpen={showAddCardForm} onDidDismiss={() => setShowAddCardForm(false)}>
           <IonContent>
-            <AddCardForm onAddCard={handleAddCard} />
+            <AddCardForm onAddCard={handleAddCard} onClose={() => setShowAddCardForm(false)} />
           </IonContent>
         </IonModal>
 

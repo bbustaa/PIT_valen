@@ -540,11 +540,33 @@ app.get('/chats/:chatId/messages', async (req, res) => {
         if (messages.length > 0) {
             res.status(200).json(messages);
         } else {
-            res.status(404).json({ message: 'No se encontraron mensajes para este chat.' });
+            res.status(200).json([]); // Devolver un arreglo vacío
         }
     } catch (error) {
         console.error('Error al obtener los mensajes del chat:', error);
         res.status(500).json({ error: 'Error al obtener los mensajes del chat.' });
+    }
+});
+
+// Ruta para crear un nuevo chat
+app.post('/chats/create', async (req, res) => {
+    const { user1_id, user2_id } = req.body;
+
+    if (!user1_id || !user2_id) {
+        return res.status(400).json({ message: 'Faltan datos para crear el chat.' });
+    }
+
+    try {
+        // Crear un nuevo chat en la base de datos
+        const [newChat] = await pool.query(
+            'INSERT INTO chats (user1_id, user2_id) VALUES (?, ?)',
+            [user1_id, user2_id]
+        );
+
+        res.status(201).json({ chatId: newChat.insertId });
+    } catch (error) {
+        console.error('Error al crear el chat:', error);
+        res.status(500).json({ message: 'Error al crear el chat.' });
     }
 });
 

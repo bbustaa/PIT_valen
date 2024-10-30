@@ -26,6 +26,8 @@ interface ChatItem {
   user2_id: string;
   created_at: string;
   lastMessage?: string; // Nuevo campo para mostrar el último mensaje
+  lastMessageTime?: string; // Añadir la propiedad que causa el error
+  unread?: boolean; // También añadir 'unread' ya que se usa más adelante
 }
 
 interface Message {
@@ -64,7 +66,6 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
   }, [currentUserId]);
 
   useEffect(() => {
-    // Escuchar nuevos mensajes para actualizar la lista de chats
     const handleReceiveMessage = (message: Message) => {
       setChats((prevChats) => {
         const updatedChats = prevChats.map((chat) => {
@@ -72,6 +73,8 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
             return {
               ...chat,
               lastMessage: message.content,
+              lastMessageTime: message.timestamp, // Nueva propiedad para mostrar el tiempo
+              unread: chat.id !== selectedChatId, // Si no es el chat abierto, marcar como no leído
             };
           }
           return chat;
@@ -79,18 +82,18 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
         return updatedChats;
       });
     };
-
+  
     if (socket) {
       socket.on('receive_message', handleReceiveMessage);
     }
-
+  
     return () => {
       if (socket) {
         socket.off('receive_message', handleReceiveMessage);
       }
     };
-  }, [socket]);
-
+  }, [socket, selectedChatId]);
+  
   // Función para abrir un chat seleccionado
   const openChat = (chat: ChatItem) => {
     setSelectedChatId(chat.id);
@@ -127,8 +130,14 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
                 <IonItem key={chat.id} onClick={() => openChat(chat)}>
                   <IonLabel>
                     <p>{`Chat con ${chat.user1_id === currentUserId ? chat.user2_id : chat.user1_id}`}</p>
-                    {chat.lastMessage && <p className="last-message">{chat.lastMessage}</p>}
+                    {chat.lastMessage && (
+                      <>
+                        <p className="last-message">{chat.lastMessage}</p>
+                        {chat.lastMessageTime && <small>{new Date(chat.lastMessageTime).toLocaleTimeString()}</small>}
+                      </>
+                    )}
                   </IonLabel>
+                  {chat.unread && <span className="unread-indicator">Nuevo</span>}  {/* Indicador de mensajes no leídos */}
                 </IonItem>
               ))
             ) : (

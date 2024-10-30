@@ -12,7 +12,7 @@ import {
   IonPage,
 } from '@ionic/react';
 import { send } from 'ionicons/icons';
-import socket from '../pages/socket'; // Asegúrate de la ruta correcta a socket.ts
+import socket from '../pages/socket';
 
 interface ChatProps {
   chatId: string;
@@ -47,23 +47,23 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }
 
     fetchMessages();
 
-    // Unirse al chat al montar el componente
+    // Unirse al chat y escuchar mensajes entrantes
     socket.emit('join_chat', chatId);
 
-    // Manejar la recepción de nuevos mensajes
-  const handleReceiveMessage = (message: Message) => {
-    if (message.chatId === chatId) {
-      setMessages((prevMessages) => [...prevMessages, message]);
-    }
-  };
+    const handleReceiveMessage = (message: Message) => {
+      if (message.chatId === chatId) {
+        setMessages((prevMessages) => [...prevMessages, message]);
+      }
+    };
 
-  socket.on('receive_message', handleReceiveMessage);
+    socket.on('receive_message', handleReceiveMessage);
 
-  // Limpiar los eventos al desmontar el componente
-  return () => {
-    socket.off('receive_message', handleReceiveMessage);
-  };
-}, [chatId, socket]);
+    // Limpiar los eventos al desmontar el componente
+    return () => {
+      socket.off('receive_message', handleReceiveMessage);
+      socket.emit('leave_chat', chatId); // Dejar el chat para evitar duplicaciones
+    };
+  }, [chatId, socket]);
 
   // Manejar el envío de un nuevo mensaje
   const handleSendMessage = () => {
@@ -74,10 +74,15 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }
         sender_id: currentUserId,
         content: newMessage,
       };
-      // Emitir el mensaje junto con receiverId al backend
-      socket.emit('send_message', { ...message, receiver_id: receiverId });
-      setMessages((prevMessages) => [...prevMessages, message]);
+
       setNewMessage('');
+
+      socket.emit('send_message', { ...message, receiver_id: receiverId }, (ack: any) => {
+        if (ack && ack.success) {
+          // El servidor confirma que el mensaje se envió exitosamente
+          setMessages((prevMessages) => [...prevMessages, message]);
+        }
+      });
     }
   };
 
@@ -119,4 +124,4 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }
   );
 };
 
-export default Chat; 
+export default Chat;

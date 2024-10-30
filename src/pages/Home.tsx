@@ -20,8 +20,8 @@ import {
 } from '@ionic/react';
 import { add, chatbubbles, paperPlane } from 'ionicons/icons';
 import AddCardForm from './AddCardForm';
-import Chat from '../components/Chat';
 import MessagesInbox from './MessagesInbox';
+import Chat from '../components/Chat';
 import socket from './socket'; // Importar el socket desde el archivo socket.ts
 import './Home.css';
 
@@ -66,18 +66,39 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
     fetchCards();
   }, []);
 
-  const handleAddCard = (title: string, subtitle: string, content: string, imageUrl: string) => {
-    const newCard: Card = {
-      id: Date.now(),
-      title,
-      subtitle,
-      content,
-      color: 'tertiary',
-      imageUrl,
-      owner_id: currentUserId,
-    };
-    setCards([...cards, newCard]);
-    setShowAddCardForm(false);
+  const handleAddCard = async (title: string, subtitle: string, content: string, imageUrl: string) => {
+    try {
+      const newCard: Card = {
+        id: Date.now(), // Generar un ID temporal
+        title,
+        subtitle,
+        content,
+        color: 'tertiary',
+        imageUrl,
+        owner_id: currentUserId,
+      };
+
+      // Enviar la tarjeta al backend
+      const response = await fetch('http://localhost:5000/tarjetas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newCard),
+      });
+
+      if (!response.ok) {
+        throw new Error('No se pudo agregar la tarjeta');
+      }
+
+      // Añadir la tarjeta al estado local para actualizar la UI
+      const data = await response.json();
+      setCards((prevCards) => [...prevCards, data]);
+
+      setShowAddCardForm(false);
+    } catch (error) {
+      console.error('Error al agregar tarjeta:', error);
+    }
   };
 
   const openCardModal = (card: Card) => {
@@ -135,6 +156,20 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
             <IonIcon icon={chatbubbles} />
           </IonFabButton>
         </IonFab>
+
+        {/* Modal para añadir una tarjeta */}
+        <IonModal isOpen={showAddCardForm} onDidDismiss={() => setShowAddCardForm(false)}>
+          <IonContent>
+            <AddCardForm onAddCard={handleAddCard} />
+          </IonContent>
+        </IonModal>
+
+        {/* Modal para mostrar el buzón de mensajes */}
+        <IonModal isOpen={showMessagesInbox} onDidDismiss={() => setShowMessagesInbox(false)}>
+          <IonContent>
+            <MessagesInbox currentUserId={currentUserId} socket={socket} />
+          </IonContent>
+        </IonModal>
 
         {/* Modal para mostrar el contenido de una tarjeta */}
         <IonModal isOpen={showCardModal} onDidDismiss={() => setShowCardModal(false)}>

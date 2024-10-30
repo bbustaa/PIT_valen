@@ -31,20 +31,30 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [showChat, setShowChat] = useState<boolean>(false);
-  const [selectedCardOwnerId, setSelectedCardOwnerId] = useState<string>('');
 
   useEffect(() => {
+    // Verificar que el currentUserId se obtiene correctamente
+    console.log('currentUserId:', currentUserId);
+
     // Obtener los chats existentes cuando se monta el componente
     const fetchChats = async () => {
       try {
         const response = await fetch(`http://localhost:5000/chats/${currentUserId}`);
-        const data: ChatItem[] = await response.json();
-        setChats(data);
+        if (response.ok) {
+          const data: ChatItem[] = await response.json();
+          console.log('Chats obtenidos:', data); // Añadir log para verificar los datos obtenidos
+          setChats(data);
+        } else {
+          console.error('Error: No se encontraron chats para el usuario actual.');
+        }
       } catch (error) {
         console.error('Error al obtener los chats:', error);
       }
     };
-    fetchChats();
+
+    if (currentUserId) {
+      fetchChats();
+    }
   }, [currentUserId]);
 
   useEffect(() => {
@@ -74,9 +84,8 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
   }, [currentUserId, socket]);
 
   // Función para abrir un chat seleccionado
-  const openChat = (chatId: number, ownerId: string) => {
+  const openChat = (chatId: number) => {
     setSelectedChatId(chatId);
-    setSelectedCardOwnerId(ownerId);
     setShowChat(true);
   };
 
@@ -99,7 +108,6 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
           <Chat
             chatId={selectedChatId.toString()}
             currentUserId={currentUserId}
-           
             socket={socket}
           />
         ) : (
@@ -109,18 +117,9 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
               chats.map((chat) => (
                 <IonItem
                   key={chat.id}
-                  onClick={() =>
-                    openChat(
-                      chat.id,
-                      chat.user1_id === currentUserId ? chat.user2_id : chat.user1_id
-                    )
-                  }
+                  onClick={() => openChat(chat.id)}
                 >
-                  <IonLabel>
-                    {chat.user1_id === currentUserId
-                      ? `Chat con ${chat.user2_id}`
-                      : `Chat con ${chat.user1_id}`}
-                  </IonLabel>
+                  <IonLabel>{`Chat con ID: ${chat.id}`}</IonLabel>
                 </IonItem>
               ))
             ) : (

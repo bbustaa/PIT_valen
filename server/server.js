@@ -431,21 +431,26 @@ io.on('connection', (socket) => {
       const { chatId, sender_id, content, receiver_id } = data;
   
       try {
-        // Verificar si el chat ya existe
-        let existingChat = await pool.query('SELECT * FROM chats WHERE id = ?', [chatId]);
+        // Verificar si ya existe un chat entre estos dos usuarios
+        let [existingChat] = await pool.query(
+            'SELECT * FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)',
+            [sender_id, receiver_id, receiver_id, sender_id]
+        );
   
         // Si el chat no existe, crearlo
-        if (existingChat[0].length === 0) {
-          console.log('El chat no existe, creando un nuevo chat...');
-          if (!receiver_id) {
+        if (existingChat.length === 0) {
+            console.log('El chat no existe, creando un nuevo chat...');
+            if (!receiver_id) {
             console.error('Error: receiver_id no está definido');
             return;
-          }
-          const [newChat] = await pool.query(
+            }
+            const [newChat] = await pool.query(
             'INSERT INTO chats (user1_id, user2_id) VALUES (?, ?)',
             [sender_id, receiver_id]
-          );
-          data.chatId = newChat.insertId;
+            );
+            data.chatId = newChat.insertId;
+        } else {
+            data.chatId = existingChat[0].id; // Usar el id del chat existente
         }
   
         // Insertar el mensaje en la base de datos usando el chatId
@@ -475,6 +480,29 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
       console.log('Usuario desconectado:', socket.id);
     });
+});
+
+// Ruta para obtener todos los chats en los que el usuario actual esté involucrado
+app.get('/chats/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        console.log('Recibida solicitud para obtener chats del usuario:', userId);
+        const [chats] = await pool.query(
+            'SELECT * FROM chats WHERE user1_id = ? OR user2_id = ?',
+            [userId, userId]
+        );
+        console.log('Resultado de la consulta:', chats);
+
+        if (chats.length > 0) {
+            res.status(200).json(chats);
+        } else {
+            res.status(404).json({ message: 'No se encontraron chats para este usuario.' });
+        }
+    } catch (error) {
+        console.error('Error al obtener los chats:', error);
+        res.status(500).json({ error: 'Error al obtener los chats.' });
+    }
 });
 
 // Iniciar el servidor

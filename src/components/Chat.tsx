@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   IonContent,
   IonFooter,
@@ -34,6 +34,9 @@ interface Message {
 const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState<string>('');
+  
+  // Referencia al final de la lista de mensajes
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Unirse al chat
@@ -68,6 +71,13 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId }) => {
       socket.emit('leave_chat', chatId);
     };
   }, [chatId, socket]);
+
+  // Efecto para desplazar automáticamente hacia el último mensaje
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
   // Manejar el envío de un nuevo mensaje
   const handleSendMessage = () => {
@@ -113,11 +123,8 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId }) => {
               </IonLabel>
             </IonItem>
           ))}
-          {messages.length === 0 && (
-            <IonItem lines="none">
-              <IonLabel>No hay mensajes en este chat. ¡Sé el primero en decir algo!</IonLabel>
-            </IonItem>
-          )}
+          {/* Elemento para desplazar automáticamente hacia el final de la lista de mensajes */}
+          <div ref={messagesEndRef} />
         </IonList>
       </IonContent>
       <IonFooter>

@@ -30,19 +30,17 @@ interface ChatItem {
 const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) => {
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
+  const [receiverId, setReceiverId] = useState<string | null>(null);
   const [showChat, setShowChat] = useState<boolean>(false);
 
   useEffect(() => {
-    // Verificar que el currentUserId se obtiene correctamente
-    console.log('currentUserId:', currentUserId);
-
     // Obtener los chats existentes cuando se monta el componente
     const fetchChats = async () => {
       try {
         const response = await fetch(`http://localhost:5000/chats/${currentUserId}`);
         if (response.ok) {
           const data: ChatItem[] = await response.json();
-          console.log('Chats obtenidos:', data); // Añadir log para verificar los datos obtenidos
+          console.log('Chats obtenidos:', data);
           setChats(data);
         } else {
           console.error('Error: No se encontraron chats para el usuario actual.');
@@ -84,8 +82,11 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
   }, [currentUserId, socket]);
 
   // Función para abrir un chat seleccionado
-  const openChat = (chatId: number) => {
-    setSelectedChatId(chatId);
+  const openChat = (chat: ChatItem) => {
+    setSelectedChatId(chat.id);
+    // Determinar el receptor basado en el usuario actual
+    const receiver = chat.user1_id === currentUserId ? chat.user2_id : chat.user1_id;
+    setReceiverId(receiver);
     setShowChat(true);
   };
 
@@ -103,12 +104,13 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
         </IonToolbar>
       </IonHeader>
       <IonContent>
-        {showChat && selectedChatId ? (
+        {showChat && selectedChatId && receiverId ? (
           // Mostrar la conversación si se ha seleccionado un chat
           <Chat
             chatId={selectedChatId.toString()}
             currentUserId={currentUserId}
             socket={socket}
+            receiverId={receiverId}
           />
         ) : (
           // Mostrar la lista de chats si no hay chat seleccionado
@@ -117,9 +119,9 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
               chats.map((chat) => (
                 <IonItem
                   key={chat.id}
-                  onClick={() => openChat(chat.id)}
+                  onClick={() => openChat(chat)}
                 >
-                  <IonLabel>{`Chat con ID: ${chat.id}`}</IonLabel>
+                  <IonLabel>{`Chat con ${chat.user1_id === currentUserId ? chat.user2_id : chat.user1_id}`}</IonLabel>
                 </IonItem>
               ))
             ) : (

@@ -421,64 +421,65 @@ const io = new Server(server, {
 // Socket.IO - Evento para enviar mensajes
 io.on('connection', (socket) => {
     console.log('Usuario conectado:', socket.id);
-  
+
     socket.on('join_chat', (chatId) => {
-      socket.join(chatId);
-      console.log(`Usuario ${socket.id} se unió al chat ${chatId}`);
+        socket.join(chatId);
+        console.log(`Usuario ${socket.id} se unió al chat ${chatId}`);
     });
-  
+
     socket.on('send_message', async (data) => {
         const { chatId, sender_id, content, receiver_id } = data;
-      
+
         try {
-          // Verificar si ya existe un chat entre estos dos usuarios
-          let [existingChat] = await pool.query(
-            'SELECT * FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)',
-            [sender_id, receiver_id, receiver_id, sender_id]
-          );
-      
-          // Si el chat no existe, crearlo
-          if (existingChat.length === 0) {
-            console.log('El chat no existe, creando un nuevo chat...');
-            if (!receiver_id) {
-              console.error('Error: receiver_id no está definido');
-              return;
-            }
-            const [newChat] = await pool.query(
-              'INSERT INTO chats (user1_id, user2_id) VALUES (?, ?)',
-              [sender_id, receiver_id]
+            // Verificar si ya existe un chat entre estos dos usuarios
+            let [existingChat] = await pool.query(
+                'SELECT * FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)',
+                [sender_id, receiver_id, receiver_id, sender_id]
             );
-            data.chatId = newChat.insertId;
-          } else {
-            data.chatId = existingChat[0].id; // Usar el id del chat existente
-          }
-      
-          // Insertar el mensaje en la base de datos usando el chatId
-          const [result] = await pool.query(
-            'INSERT INTO mensajes (chat_id, sender_id, content) VALUES (?, ?, ?)',
-            [data.chatId, sender_id, content]
-          );
-      
-          if (result.affectedRows > 0) {
-            // Emitir el mensaje a todos los usuarios en el chat
-            const newMessage = {
-              id: result.insertId,
-              chatId: data.chatId,
-              sender_id,
-              content,
-              timestamp: new Date().toISOString(),
-            };
-            io.to(data.chatId).emit('receive_message', newMessage);
-          } else {
-            console.error('No se pudo insertar el mensaje en la base de datos.');
-          }
+
+            if (existingChat.length === 0) {
+                console.log('El chat no existe, creando un nuevo chat...');
+                if (!receiver_id) {
+                    console.error('Error: receiver_id no está definido');
+                    return;
+                }
+                const [newChat] = await pool.query(
+                    'INSERT INTO chats (user1_id, user2_id) VALUES (?, ?)',
+                    [sender_id, receiver_id]
+                );
+                data.chatId = newChat.insertId;
+            } else {
+                data.chatId = existingChat[0].id; // Usar el id del chat existente
+            }
+
+            // Insertar el mensaje en la base de datos usando el chatId
+            const insertMessageQuery = `
+                INSERT INTO mensajes (chat_id, sender_id, content, timestamp)
+                VALUES (?, ?, ?, ?)
+            `;
+            const timestamp = new Date().toISOString();
+            const [result] = await pool.query(insertMessageQuery, [data.chatId, sender_id, content, timestamp]);
+
+            if (result.affectedRows > 0) {
+                // Emitir el mensaje a todos los usuarios en el chat
+                const newMessage = {
+                    id: result.insertId,
+                    chatId: data.chatId,
+                    sender_id,
+                    content,
+                    timestamp,
+                };
+                io.to(data.chatId).emit('receive_message', newMessage);
+            } else {
+                console.error('No se pudo insertar el mensaje en la base de datos.');
+            }
         } catch (error) {
-          console.error('Error al insertar el mensaje:', error);
+            console.error('Error al insertar el mensaje:', error);
         }
-      });      
-  
+    });
+
     socket.on('disconnect', () => {
-      console.log('Usuario desconectado:', socket.id);
+        console.log('Usuario desconectado:', socket.id);
     });
 });
 
@@ -532,14 +533,18 @@ app.get('/chats/:chatId/messages', async (req, res) => {
 
     try {
         const [messages] = await pool.query(
-            'SELECT * FROM mensajes WHERE chat_id = ? ORDER BY timestamp ASC', 
+            'SELECT * FROM mensajes WHERE chat_id = ? ORDER BY timestamp ASC',
             [chatId]
         );
 
-        res.status(200).json(messages);
+        if (messages.length > 0) {
+            res.status(200).json(messages);
+        } else {
+            res.status(404).json({ message: 'No se encontraron mensajes para este chat.' });
+        }
     } catch (error) {
-        console.error('Error al obtener los mensajes:', error);
-        res.status(500).json({ error: 'Error al obtener los mensajes.' });
+        console.error('Error al obtener los mensajes del chat:', error);
+        res.status(500).json({ error: 'Error al obtener los mensajes del chat.' });
     }
 });
 

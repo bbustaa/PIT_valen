@@ -18,7 +18,7 @@ interface ChatProps {
   chatId: string;
   currentUserId: string;
   socket: any;
-  receiverId?: string; // Añadir receiverId como propiedad opcional
+  receiverId?: string;
 }
 
 interface Message {
@@ -50,7 +50,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }
     // Unirse al chat al montar el componente
     socket.emit('join_chat', chatId);
 
-    // Escuchar nuevos mensajes
+    // Escuchar nuevos mensajes y actualizar la lista en tiempo real
     socket.on('receive_message', (message: Message) => {
       if (message.chatId === chatId) {
         setMessages((prevMessages) => [...prevMessages, message]);
@@ -61,7 +61,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }
     return () => {
       socket.off('receive_message');
     };
-  }, [chatId, socket]);
+}, [chatId, socket]);
 
   // Manejar el envío de un nuevo mensaje
   const handleSendMessage = () => {

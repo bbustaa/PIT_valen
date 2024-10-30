@@ -22,6 +22,7 @@ interface ChatProps {
 }
 
 interface Message {
+  id: number;
   chatId: string;
   sender_id: string;
   content: string;
@@ -33,26 +34,40 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }
   const [newMessage, setNewMessage] = useState<string>('');
 
   useEffect(() => {
+    // Recuperar los mensajes del chat cuando el componente se monta
+    const fetchMessages = async () => {
+      try {
+        const response = await fetch(`http://localhost:5000/chats/${chatId}/messages`);
+        const data = await response.json();
+        setMessages(data);
+      } catch (error) {
+        console.error('Error al obtener los mensajes del chat:', error);
+      }
+    };
+
+    fetchMessages();
+
     // Unirse al chat al montar el componente
     socket.emit('join_chat', chatId);
-  
+
     // Escuchar nuevos mensajes
     socket.on('receive_message', (message: Message) => {
       if (message.chatId === chatId) {
         setMessages((prevMessages) => [...prevMessages, message]);
       }
     });
-  
+
     // Limpiar los eventos al desmontar el componente
     return () => {
       socket.off('receive_message');
     };
   }, [chatId, socket]);
-  
+
   // Manejar el envío de un nuevo mensaje
   const handleSendMessage = () => {
     if (newMessage.trim() !== '') {
       const message: Message = {
+        id: Date.now(),
         chatId,
         sender_id: currentUserId,
         content: newMessage,
@@ -68,8 +83,8 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, socket, receiverId }
     <IonPage>
       <IonContent>
         <IonList>
-          {messages.map((message, index) => (
-            <IonItem key={index} lines="none">
+          {messages.map((message) => (
+            <IonItem key={message.id} lines="none">
               <IonLabel>
                 <p>
                   <strong>{message.sender_id === currentUserId ? 'Tú' : 'Otro'}:</strong> {message.content}

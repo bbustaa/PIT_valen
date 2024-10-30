@@ -524,7 +524,24 @@ app.get('/chats/find/:userId/:receiverId', async (req, res) => {
       console.error('Error al buscar chat:', err);
       res.status(500).send('Error al buscar chat');
     }
-  });  
+});  
+
+// Ruta para obtener todos los mensajes de un chat específico
+app.get('/chats/:chatId/messages', async (req, res) => {
+    const { chatId } = req.params;
+
+    try {
+        const [messages] = await pool.query(
+            'SELECT * FROM mensajes WHERE chat_id = ? ORDER BY timestamp ASC', 
+            [chatId]
+        );
+
+        res.status(200).json(messages);
+    } catch (error) {
+        console.error('Error al obtener los mensajes:', error);
+        res.status(500).json({ error: 'Error al obtener los mensajes.' });
+    }
+});
 
 // Iniciar el servidor
 server.listen(PORT, () => {

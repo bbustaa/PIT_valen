@@ -10,6 +10,9 @@ import {
   IonItem,
   IonLabel,
   IonPage,
+  IonHeader,
+  IonTitle,
+  IonToolbar as IonHeaderToolbar,
 } from '@ionic/react';
 import { send } from 'ionicons/icons';
 import socket from '../pages/socket';
@@ -28,13 +31,14 @@ interface Message {
   sender_id: string;
   content: string;
   timestamp?: string;
-  sender_name?: string; 
+  sender_name?: string;
 }
 
 const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState<string>('');
-  
+  const [receiverName, setReceiverName] = useState<string>(''); // Estado para almacenar el nombre del usuario con el que estás chateando
+
   // Referencia al final de la lista de mensajes
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -55,9 +59,24 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId }) => {
 
     fetchMessages();
 
+    // Recuperar el nombre del otro usuario
+    const fetchReceiverName = async () => {
+      if (receiverId) {
+        try {
+          const response = await fetch(`http://localhost:5000/usuarios/${receiverId}`);
+          const data = await response.json();
+          setReceiverName(data.nombre);
+        } catch (error) {
+          console.error('Error al obtener el nombre del usuario:', error);
+        }
+      }
+    };
+
+    fetchReceiverName();
+
     // Manejar la recepción de nuevos mensajes
     const handleReceiveMessage = (message: Message) => {
-      console.log("Mensaje recibido del socket:", message);
+      console.log('Mensaje recibido del socket:', message);
       if (message.chatId.toString() === chatId.toString()) {
         setMessages((prevMessages) => [...prevMessages, message]);
       }
@@ -70,7 +89,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId }) => {
       socket.off('receive_message', handleReceiveMessage);
       socket.emit('leave_chat', chatId);
     };
-  }, [chatId, socket]);
+  }, [chatId, receiverId, socket]);
 
   // Efecto para desplazar automáticamente hacia el último mensaje
   useEffect(() => {
@@ -102,20 +121,20 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId }) => {
 
   return (
     <IonPage>
+      <IonHeader>
+        <IonHeaderToolbar>
+          <IonTitle>{receiverName ? receiverName : 'Usuario'}</IonTitle> {/* Mostrar el nombre del usuario */}
+        </IonHeaderToolbar>
+      </IonHeader>
       <IonContent>
         <IonList>
           {messages.map((message) => (
             <IonItem
               key={message.id}
               lines="none"
-              className={
-                message.sender_id === currentUserId ? 'message-item me' : 'message-item other'
-              }
+              className={message.sender_id === currentUserId ? 'message-item me' : 'message-item other'}
             >
               <IonLabel className="message-label">
-                <p className="message-sender">
-                  <strong>{message.sender_id === currentUserId ? 'Tú' : message.sender_name}:</strong>
-                </p>
                 <p className="message-content">{message.content}</p>
                 <small className="message-timestamp">
                   {new Date(message.timestamp!).toLocaleTimeString()}

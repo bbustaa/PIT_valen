@@ -1,40 +1,35 @@
 .message-item {
-    margin: 10px 0;
-  }
-  
-  .message-item.me {
-    text-align: right;
-    justify-content: flex-end;
-    background-color: #d1e7dd; /* Color para los mensajes propios */
-    border-radius: 15px;
-    padding: 10px;
-    margin-left: auto; /* Mueve los mensajes hacia la derecha */
-  }
-  
-  .message-item.other {
-    text-align: left;
-    justify-content: flex-start;
-    background-color: #f8d7da; /* Color para los mensajes de otros usuarios */
-    border-radius: 15px;
-    padding: 10px;
-    margin-right: auto; /* Mueve los mensajes hacia la izquierda */
-  }
-  
-  .message-label {
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .message-sender {
-    font-weight: bold;
-  }
-  
-  .message-content {
-    margin: 5px 0;
-  }
-  
-  .message-timestamp {
-    font-size: 0.8em;
-    color: #6c757d;
-  }
-  
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 10px 15px;
+}
+
+.message-item.me {
+  align-items: flex-end;
+}
+
+.message-content {
+  background-color: #e0e0e0;
+  padding: 10px;
+  border-radius: 10px;
+  max-width: 75%;
+}
+
+.message-item.me .message-content {
+  background-color: #007bff; /* Cambia a tu color preferido para tus mensajes */
+  color: #ffffff;
+}
+
+.message-timestamp {
+  font-size: 0.8em;
+  margin-top: 5px;
+}
+
+.message-item.me .message-timestamp {
+  align-self: flex-start; /* Alinear a la izquierda cuando es el mensaje del usuario actual */
+}
+
+.message-item.other .message-timestamp {
+  align-self: flex-end; /* Alinear a la derecha cuando es el mensaje del otro usuario */
+}

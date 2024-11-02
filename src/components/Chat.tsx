@@ -16,8 +16,6 @@ import {
   IonButtons,
 } from '@ionic/react';
 import { send, exit } from 'ionicons/icons'; // Icono de salida
-import { useHistory } from 'react-router-dom'; // Importar useHistory para la navegación
-import socket from '../pages/socket';
 import './Chat.css'; // Importar archivo CSS para los estilos
 
 interface ChatProps {
@@ -25,6 +23,7 @@ interface ChatProps {
   currentUserId: string;
   socket: any;
   receiverId?: string;
+  onExit: () => void; // Agregar la propiedad onExit
 }
 
 interface Message {
@@ -36,16 +35,13 @@ interface Message {
   sender_name?: string;
 }
 
-const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId }) => {
+const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId, socket, onExit }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState<string>('');
   const [receiverName, setReceiverName] = useState<string>(''); // Estado para almacenar el nombre del usuario con el que estás chateando
 
   // Referencia al final de la lista de mensajes
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Para la navegación
-  const history = useHistory();
 
   useEffect(() => {
     // Unirse al chat
@@ -124,18 +120,13 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId }) => {
     }
   };
 
-  // Manejar la salida del chat y volver a la página principal
-  const handleExitChat = () => {
-    history.push('/home');
-  };
-
   return (
     <IonPage>
       <IonHeader>
         <IonHeaderToolbar>
           <IonTitle>{receiverName ? receiverName : 'Usuario'}</IonTitle> {/* Mostrar el nombre del usuario */}
           <IonButtons slot="end">
-            <IonButton onClick={handleExitChat}>
+            <IonButton onClick={onExit}>
               <IonIcon icon={exit} />
               Salir
             </IonButton>

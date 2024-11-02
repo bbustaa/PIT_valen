@@ -1,16 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   IonContent,
   IonHeader,
   IonPage,
   IonTitle,
   IonToolbar,
+  IonButtons,
+  IonButton,
+  IonIcon,
   IonList,
   IonItem,
   IonLabel,
-  IonButton,
   IonModal,
 } from '@ionic/react';
+import { exit } from 'ionicons/icons'; // Importar el ícono de salida
 import Chat from '../components/Chat';
 
 interface MessagesInboxProps {
@@ -33,6 +36,7 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [selectedChat, setSelectedChat] = useState<ChatItem | null>(null);
   const [showChatModal, setShowChatModal] = useState<boolean>(false);
+  const messagesModalRef = useRef<HTMLIonModalElement | null>(null); // Ref para el modal
 
   useEffect(() => {
     // Fetch chats when the component mounts
@@ -100,11 +104,23 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
     setSelectedChat(null);
   };
 
+  const closeMessagesModal = () => {
+    if (messagesModalRef.current) {
+      messagesModalRef.current.dismiss(); // Usar el ref para cerrar el modal explícitamente
+    }
+  };
+
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
           <IonTitle>Buzón de Mensajes</IonTitle>
+          <IonButtons slot="end">
+            <IonButton onClick={closeMessagesModal}>
+              <IonIcon icon={exit} />
+              Salir
+            </IonButton>
+          </IonButtons>
         </IonToolbar>
       </IonHeader>
       <IonContent>
@@ -113,18 +129,18 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
             chats.map((chat) => (
               <IonItem key={chat.id} onClick={() => openChatModal(chat)}>
                 <IonLabel>
-                    <p>{`Chat sobre: ${chat.card_title}`}</p>
-                    {chat.lastMessage && (
-                        <>
-                            <p className="last-message">{chat.lastMessage}</p>
-                            {chat.lastMessageTime && (
-                                <small>{new Date(chat.lastMessageTime).toLocaleTimeString()}</small>
-                            )}
-                        </>
-                    )}
+                  <p>{`Chat sobre: ${chat.card_title}`}</p>
+                  {chat.lastMessage && (
+                    <>
+                      <p className="last-message">{chat.lastMessage}</p>
+                      {chat.lastMessageTime && (
+                        <small>{new Date(chat.lastMessageTime).toLocaleTimeString()}</small>
+                      )}
+                    </>
+                  )}
                 </IonLabel>
                 {chat.unread && <span className="unread-indicator">Nuevo</span>}
-            </IonItem>
+              </IonItem>
             ))
           ) : (
             <IonItem>
@@ -135,7 +151,7 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
 
         {/* Modal to display the chat */}
         {selectedChat && (
-          <IonModal isOpen={showChatModal} onDidDismiss={closeChatModal}>
+          <IonModal ref={messagesModalRef} isOpen={showChatModal} onDidDismiss={closeChatModal}>
             <IonContent>
               <IonButton onClick={closeChatModal}>Cerrar Chat</IonButton>
               <Chat
@@ -143,6 +159,7 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
                 currentUserId={currentUserId}
                 socket={socket}
                 receiverId={selectedChat.user1_id === currentUserId ? selectedChat.user2_id : selectedChat.user1_id}
+                onExit={closeChatModal} // Añadir la propiedad onExit
               />
             </IonContent>
           </IonModal>

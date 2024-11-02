@@ -223,7 +223,7 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
         {showChat && chatId && receiverId && (
           <IonModal isOpen={showChat} onDidDismiss={() => setShowChat(false)}>
             <IonContent>
-              <Chat chatId={chatId} receiverId={receiverId} currentUserId={currentUserId} socket={socket} />
+              <Chat chatId={chatId} receiverId={receiverId} currentUserId={currentUserId} socket={socket} onExit={() => setShowChat(false)}/>
             </IonContent>
           </IonModal>
         )}

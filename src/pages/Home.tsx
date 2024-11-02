@@ -40,6 +40,18 @@ interface Card {
   owner_id: string;
 }
 
+interface ChatItem {
+  id: number;
+  user1_id: string;
+  user2_id: string;
+  created_at: string;
+  lastMessage?: string;
+  lastMessageTime?: string;
+  unread?: boolean;
+  card_title: string;
+  has_unread?: boolean;
+}
+
 const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
   const [cards, setCards] = useState<Card[]>([]);
   const [showAddCardForm, setShowAddCardForm] = useState(false);
@@ -49,7 +61,7 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
   const [showChat, setShowChat] = useState(false);
   const [chatId, setChatId] = useState<string | null>(null);
   const [receiverId, setReceiverId] = useState<string | null>(null); // Para almacenar el ID del receptor del chat
-
+  const [hasUnreadMessages, setHasUnreadMessages] = useState<boolean>(false);
   const currentUserId = localStorage.getItem('id') || '';
 
   // Cargar tarjetas desde la base de datos al iniciar
@@ -65,6 +77,46 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
     };
     fetchCards();
   }, []);
+
+  // Cargar chats y verificar si hay mensajes no leídos
+  useEffect(() => {
+    const fetchChats = async () => {
+      try {
+        const response = await fetch(`http://localhost:5000/chats/${currentUserId}`);
+        if (response.ok) {
+          const data: ChatItem[] = await response.json();
+          const unreadChats = data.some(chat => chat.has_unread);
+          setHasUnreadMessages(unreadChats);
+        }
+      } catch (error) {
+        console.error('Error al obtener los chats:', error);
+      }
+    };
+  
+    if (currentUserId) {
+      fetchChats();
+    }
+  }, [currentUserId]);
+
+  // Escuchar eventos de nuevos mensajes y actualizar las notificaciones en tiempo real
+  useEffect(() => {
+    const handleReceiveMessage = (message: { chatId: number }) => {
+      // Si el mensaje recibido es para un chat diferente al actualmente abierto, actualizar hasUnreadMessages
+      if (message.chatId !== parseInt(chatId ?? '-1', 10)) {
+        setHasUnreadMessages(true);
+      }
+    };
+
+    if (socket) {
+      socket.on('receive_message', handleReceiveMessage);
+    }
+
+    return () => {
+      if (socket) {
+        socket.off('receive_message', handleReceiveMessage);
+      }
+    };
+  }, [socket, chatId]);
 
   const handleAddCard = async (title: string, subtitle: string, content: string, imageUrl: string) => {
     try {
@@ -108,35 +160,35 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
 
   const handleOpenChat = async (card: Card) => {
     if (card.owner_id !== currentUserId) {
-        try {
-            // Buscar si ya existe un chat con el owner de la tarjeta y la tarjeta específica
-            const response = await fetch(`http://localhost:5000/chats/find/${currentUserId}/${card.owner_id}/${card.id}`);
-            const data = await response.json();
+      try {
+        // Buscar si ya existe un chat con el owner de la tarjeta y la tarjeta específica
+        const response = await fetch(`http://localhost:5000/chats/find/${currentUserId}/${card.owner_id}/${card.id}`);
+        const data = await response.json();
 
-            if (data.chatId) {
-                // Si ya existe un chat, usar ese chatId
-                setChatId(data.chatId);
-            } else {
-                // Si no existe, creamos un nuevo chat en el backend con el ID de la tarjeta
-                const createChatResponse = await fetch(`http://localhost:5000/chats/create`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ user1_id: currentUserId, user2_id: card.owner_id, card_id: card.id }),
-                });
+        if (data.chatId) {
+          // Si ya existe un chat, usar ese chatId
+          setChatId(data.chatId);
+        } else {
+          // Si no existe, creamos un nuevo chat en el backend con el ID de la tarjeta
+          const createChatResponse = await fetch(`http://localhost:5000/chats/create`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user1_id: currentUserId, user2_id: card.owner_id, card_id: card.id }),
+          });
 
-                const newChatData = await createChatResponse.json();
-                setChatId(newChatData.chatId);
-            }
-            setReceiverId(card.owner_id);
-            setShowChat(true);
-        } catch (error) {
-          console.error('Error al abrir el chat:', error);
+          const newChatData = await createChatResponse.json();
+          setChatId(newChatData.chatId);
         }
+        setReceiverId(card.owner_id);
+        setShowChat(true);
+      } catch (error) {
+        console.error('Error al abrir el chat:', error);
       }
+    }
   };
-  
+
   return (
     <IonPage>
       <IonHeader>
@@ -177,6 +229,7 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
         <IonFab vertical="bottom" horizontal="start" slot="fixed">
           <IonFabButton color="primary" onClick={() => setShowMessagesInbox(true)}>
             <IonIcon icon={chatbubbles} />
+            {hasUnreadMessages && <span className="unread-bubble">●</span>}
           </IonFabButton>
         </IonFab>
 
@@ -223,7 +276,7 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
         {showChat && chatId && receiverId && (
           <IonModal isOpen={showChat} onDidDismiss={() => setShowChat(false)}>
             <IonContent>
-              <Chat chatId={chatId} receiverId={receiverId} currentUserId={currentUserId} socket={socket} onExit={() => setShowChat(false)}/>
+              <Chat chatId={chatId} receiverId={receiverId} currentUserId={currentUserId} socket={socket} onExit={() => setShowChat(false)} />
             </IonContent>
           </IonModal>
         )}

@@ -1,14 +1,30 @@
 .card-container {
-    display: flex;
-    flex-wrap: wrap; /* Permite que las tarjetas se envuelvan en filas */
-    justify-content: space-around; /* Distribuye las tarjetas uniformemente en el contenedor */
-    gap: 15px; /* Espacio entre tarjetas */
-    padding: 10px; /* Espacio interno del contenedor */
-  }
+  display: flex;
+  flex-wrap: wrap; /* Permite que las tarjetas se envuelvan en filas */
+  justify-content: space-around; /* Distribuye las tarjetas uniformemente en el contenedor */
+  gap: 15px; /* Espacio entre tarjetas */
+  padding: 10px; /* Espacio interno del contenedor */
+}
   
-  .custom-card {
-    width: 150px; /* Ajusta el ancho según sea necesario */
-    margin: 0; /* Elimina márgenes individuales */
-    flex: 0 1 auto; /* Permite que las tarjetas crezcan y se ajusten al contenedor */
-  }
+.custom-card {
+  width: 150px; /* Ajusta el ancho según sea necesario */
+  margin: 0; /* Elimina márgenes individuales */
+  flex: 0 1 auto; /* Permite que las tarjetas crezcan y se ajusten al contenedor */
+}
   
+.unread-bubble {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translate(50%, -50%);
+  background-color: red;
+  color: white;
+  border-radius: 50%;
+  width: 10px;
+  height: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 10px;
+  font-weight: bold;
+}

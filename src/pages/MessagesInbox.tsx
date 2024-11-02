@@ -31,6 +31,7 @@ interface ChatItem {
   lastMessageTime?: string;
   unread?: boolean;
   card_title: string;
+  has_unread?: boolean; // Añadir esta línea
 }
 
 const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, onClose }) => {
@@ -47,7 +48,10 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, on
           const data: ChatItem[] = await response.json();
           const userChats = data.filter(
             (chat) => chat.user1_id === currentUserId || chat.user2_id === currentUserId
-          );
+          ).map(chat => ({
+            ...chat,
+            unread: chat.has_unread  // Asignar el valor de has_unread a unread
+          }));
           setChats(userChats);
         } else {
           console.error('Error: No se encontraron chats para el usuario actual.');

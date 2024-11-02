@@ -419,14 +419,20 @@ const io = new Server(server, {
 });
 
 // Socket.IO - Evento para enviar mensajes
-
 io.on('connection', (socket) => {
     console.log('Usuario conectado:', socket.id);
 
     // Evento para unirse a una sala de chat
-    socket.on('join_chat', (chatId) => {
+    socket.on('join_chat', async (chatId) => {
         socket.join(chatId);
         console.log(`Usuario ${socket.id} se unió al chat ${chatId}`);
+
+        // Resetear el indicador de mensajes no leídos al abrir el chat
+        await pool.query(`
+            UPDATE chats
+            SET has_unread = FALSE
+            WHERE id = ?
+        `, [chatId]);
     });
 
     // Evento para manejar el envío de mensajes
@@ -443,25 +449,21 @@ io.on('connection', (socket) => {
             const [result] = await pool.query(insertMessageQuery, [chatId, sender_id, content, timestamp]);
     
             if (result.affectedRows > 0) {
-                // Obtener el nombre del remitente
-                const [sender] = await pool.query('SELECT nombre FROM owners WHERE id = ?', [sender_id]);
-                if (sender.length > 0) {
-                    const newMessage = {
-                        id: result.insertId,
-                        chatId: chatId.toString(),
-                        sender_id,
-                        content,
-                        timestamp,
-                        sender_name: sender[0].nombre,
-                    };
-                    console.log("Emitir mensaje a sala:", chatId, "mensaje:", newMessage);
+                // Establecer has_unread a TRUE si el receptor no tiene el chat abierto
+                await pool.query(`
+                    UPDATE chats
+                    SET has_unread = TRUE
+                    WHERE id = ? AND (user1_id = ? OR user2_id = ?)
+                `, [chatId, receiver_id, receiver_id]);
     
-                    // Emitir el mensaje a todos los usuarios en la sala del chat
-                    io.to(chatId.toString()).emit('receive_message', newMessage);
-                } else {
-                    console.error('No se pudo encontrar el usuario en la base de datos.');
-                    socket.emit('error_message', { message: 'No se pudo encontrar el remitente en la base de datos.' });
-                }
+                // Emitir el mensaje a todos los usuarios en la sala del chat
+                io.to(chatId.toString()).emit('receive_message', {
+                    id: result.insertId,
+                    chatId: chatId.toString(),
+                    sender_id,
+                    content,
+                    timestamp,
+                });
             } else {
                 console.error('No se pudo insertar el mensaje en la base de datos.');
                 socket.emit('error_message', { message: 'No se pudo insertar el mensaje en la base de datos.' });

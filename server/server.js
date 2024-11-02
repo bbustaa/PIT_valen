@@ -418,7 +418,7 @@ const io = new Server(server, {
     }
 });
 
-// Socket.IO - Evento para enviar mensajes
+// WebSocket - Evento para enviar mensajes
 io.on('connection', (socket) => {
     console.log('Usuario conectado:', socket.id);
 
@@ -432,17 +432,9 @@ io.on('connection', (socket) => {
             const chat = await pool.query('SELECT * FROM chats WHERE id = ?', [chatId]);
             if (chat[0].length > 0) {
                 if (chat[0][0].user1_id === userId) {
-                    await pool.query(`
-                        UPDATE chats
-                        SET has_unread_user1 = FALSE
-                        WHERE id = ?
-                    `, [chatId]);
+                    await pool.query(`UPDATE chats SET has_unread_user1 = FALSE WHERE id = ?`, [chatId]);
                 } else if (chat[0][0].user2_id === userId) {
-                    await pool.query(`
-                        UPDATE chats
-                        SET has_unread_user2 = FALSE
-                        WHERE id = ?
-                    `, [chatId]);
+                    await pool.query(`UPDATE chats SET has_unread_user2 = FALSE WHERE id = ?`, [chatId]);
                 }
 
                 // Notificar a los clientes que los mensajes han sido leídos
@@ -460,10 +452,7 @@ io.on('connection', (socket) => {
         try {
             // Insertar el mensaje en la base de datos
             const timestamp = new Date().toISOString();
-            const insertMessageQuery = `
-                INSERT INTO mensajes (chat_id, sender_id, content, timestamp)
-                VALUES (?, ?, ?, ?)
-            `;
+            const insertMessageQuery = `INSERT INTO mensajes (chat_id, sender_id, content, timestamp) VALUES (?, ?, ?, ?)`;
             const [result] = await pool.query(insertMessageQuery, [chatId, sender_id, content, timestamp]);
 
             if (result.affectedRows > 0) {
@@ -471,17 +460,9 @@ io.on('connection', (socket) => {
                 const chat = await pool.query('SELECT * FROM chats WHERE id = ?', [chatId]);
                 if (chat[0].length > 0) {
                     if (chat[0][0].user1_id === receiver_id) {
-                        await pool.query(`
-                            UPDATE chats
-                            SET has_unread_user1 = TRUE
-                            WHERE id = ?
-                        `, [chatId]);
+                        await pool.query(`UPDATE chats SET has_unread_user1 = TRUE WHERE id = ?`, [chatId]);
                     } else if (chat[0][0].user2_id === receiver_id) {
-                        await pool.query(`
-                            UPDATE chats
-                            SET has_unread_user2 = TRUE
-                            WHERE id = ?
-                        `, [chatId]);
+                        await pool.query(`UPDATE chats SET has_unread_user2 = TRUE WHERE id = ?`, [chatId]);
                     }
                 }
 
@@ -493,6 +474,9 @@ io.on('connection', (socket) => {
                     content,
                     timestamp,
                 });
+
+                // Emitir el evento para actualizar el estado de mensajes no leídos
+                io.to(receiver_id).emit('update_unread_status', { chatId, receiver_id });
             } else {
                 console.error('No se pudo insertar el mensaje en la base de datos.');
                 socket.emit('error_message', { message: 'No se pudo insertar el mensaje en la base de datos.' });

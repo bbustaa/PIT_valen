@@ -38,6 +38,7 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, on
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [selectedChat, setSelectedChat] = useState<ChatItem | null>(null);
   const [showChatModal, setShowChatModal] = useState<boolean>(false);
+  const [trigger, setTrigger] = useState(0);
 
   useEffect(() => {
     // Fetch chats when the component mounts
@@ -79,6 +80,7 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, on
             : chat
         )
       );
+      fetchChats(); // Asegurarse de actualizar los chats después de recibir un mensaje
     };
 
     if (socket) {
@@ -91,6 +93,7 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, on
       }
     };
   }, [socket, selectedChat]);
+
 
   // Listener para mensajes leídos
   useEffect(() => {
@@ -114,6 +117,50 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, on
       }
     };
   }, [socket, currentUserId]);
+
+  // Listener para mensajes no leídos
+  useEffect(() => {
+    const handleUpdateUnreadStatus = (data: { chatId: number; receiver_id: string }) => {
+      if (data.receiver_id === currentUserId) {
+        setChats((prevChats) =>
+          prevChats.map((chat) =>
+            chat.id === data.chatId ? { ...chat, unread: true } : chat
+          )
+        );
+        setTrigger((prev) => prev + 1); // Forzar redibujado
+      }
+    };
+  
+    if (socket) {
+      socket.on('update_unread_status', handleUpdateUnreadStatus);
+    }
+  
+    return () => {
+      if (socket) {
+        socket.off('update_unread_status', handleUpdateUnreadStatus);
+      }
+    };
+  }, [socket, currentUserId]);  
+
+  
+  // Fetch de chats para obtener la lista actualizada
+  const fetchChats = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/chats/${currentUserId}`);
+      if (response.ok) {
+        const data: ChatItem[] = await response.json();
+        const userChats = data.map((chat) => ({
+          ...chat,
+          unread: chat.has_unread === 1, // Convertir a booleano
+        }));
+        setChats(userChats);
+      } else {
+        console.error('Error: No se encontraron chats para el usuario actual.');
+      }
+    } catch (error) {
+      console.error('Error al obtener los chats:', error);
+    }
+  };
 
   // Cuando el chat se abre, marcar como leído
   const openChatModal = (chat: ChatItem) => {

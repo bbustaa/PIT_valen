@@ -106,35 +106,35 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
     setShowCardModal(true);
   };
 
-  const handleOpenChat = async (card: Card) => {  // <--- Añadir el tipo Card aquí
+  const handleOpenChat = async (card: Card) => {
     if (card.owner_id !== currentUserId) {
-      try {
-        // Buscar si ya existe un chat con el owner de la tarjeta
-        const response = await fetch(`http://localhost:5000/chats/find/${currentUserId}/${card.owner_id}`);
-        const data = await response.json();
-  
-        if (data.chatId) {
-          // Si ya existe un chat, usar ese chatId
-          setChatId(data.chatId);
-        } else {
-          // Si no existe, creamos un nuevo chat en el backend
-          const createChatResponse = await fetch(`http://localhost:5000/chats/create`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ user1_id: currentUserId, user2_id: card.owner_id }),
-          });
-  
-          const newChatData = await createChatResponse.json();
-          setChatId(newChatData.chatId);
+        try {
+            // Buscar si ya existe un chat con el owner de la tarjeta y la tarjeta específica
+            const response = await fetch(`http://localhost:5000/chats/find/${currentUserId}/${card.owner_id}/${card.id}`);
+            const data = await response.json();
+
+            if (data.chatId) {
+                // Si ya existe un chat, usar ese chatId
+                setChatId(data.chatId);
+            } else {
+                // Si no existe, creamos un nuevo chat en el backend con el ID de la tarjeta
+                const createChatResponse = await fetch(`http://localhost:5000/chats/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ user1_id: currentUserId, user2_id: card.owner_id, card_id: card.id }),
+                });
+
+                const newChatData = await createChatResponse.json();
+                setChatId(newChatData.chatId);
+            }
+            setReceiverId(card.owner_id);
+            setShowChat(true);
+        } catch (error) {
+          console.error('Error al abrir el chat:', error);
         }
-        setReceiverId(card.owner_id); // Guardar el receiverId para enviar al backend
-        setShowChat(true);
-      } catch (error) {
-        console.error('Error al abrir el chat:', error);
       }
-    }
   };
   
   return (

@@ -419,7 +419,7 @@ const io = new Server(server, {
 });
 
 // Socket.IO - Evento para enviar mensajes
-// Socket.IO - Evento para enviar mensajes
+
 io.on('connection', (socket) => {
     console.log('Usuario conectado:', socket.id);
 
@@ -460,14 +460,17 @@ io.on('connection', (socket) => {
                     io.to(chatId.toString()).emit('receive_message', newMessage);
                 } else {
                     console.error('No se pudo encontrar el usuario en la base de datos.');
+                    socket.emit('error_message', { message: 'No se pudo encontrar el remitente en la base de datos.' });
                 }
             } else {
                 console.error('No se pudo insertar el mensaje en la base de datos.');
+                socket.emit('error_message', { message: 'No se pudo insertar el mensaje en la base de datos.' });
             }
         } catch (error) {
             console.error('Error al insertar el mensaje:', error);
+            socket.emit('error_message', { message: 'Error al enviar el mensaje.' });
         }
-    });    
+    });
 
     // Evento para dejar una sala de chat
     socket.on('leave_chat', (chatId) => {
@@ -488,10 +491,12 @@ app.get('/chats/:userId', async (req, res) => {
     try {
         console.log('Recibida solicitud para obtener chats del usuario:', userId);
         const [chats] = await pool.query(
-            'SELECT * FROM chats WHERE user1_id = ? OR user2_id = ?',
+            `SELECT c.*, t.title as card_title 
+            FROM chats c 
+            JOIN tarjetas t ON c.card_id = t.id 
+            WHERE user1_id = ? OR user2_id = ?`,
             [userId, userId]
         );
-        console.log('Resultado de la consulta:', chats);
 
         if (chats.length > 0) {
             res.status(200).json(chats);
@@ -505,25 +510,28 @@ app.get('/chats/:userId', async (req, res) => {
 });
 
 // Ruta para buscar chats
-app.get('/chats/find/:userId/:receiverId', async (req, res) => {
-    const { userId, receiverId } = req.params;
-  
+app.get('/chats/find/:userId/:receiverId/:cardId', async (req, res) => {
+    const { userId, receiverId, cardId } = req.params;
+
     try {
-      const [chats] = await pool.query(
-        'SELECT * FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)',
-        [userId, receiverId, receiverId, userId]
-      );
-  
-      if (chats.length > 0) {
-        res.status(200).json({ chatId: chats[0].id });
-      } else {
-        res.status(404).json({ message: 'No se encontró un chat existente' });
-      }
+        const [chats] = await pool.query(
+            `SELECT * FROM chats 
+            WHERE ((user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)) 
+            AND card_id = ?`,
+            [userId, receiverId, receiverId, userId, cardId]
+        );
+
+        if (chats.length > 0) {
+            res.status(200).json({ chatId: chats[0].id });
+        } else {
+            res.status(404).json({ message: 'No se encontró un chat existente sobre esta tarjeta.' });
+        }
     } catch (err) {
-      console.error('Error al buscar chat:', err);
-      res.status(500).send('Error al buscar chat');
+        console.error('Error al buscar chat:', err);
+        res.status(500).send('Error al buscar chat');
     }
-});  
+});
+ 
 
 // Ruta para obtener todos los mensajes de un chat específico
 app.get('/chats/:chatId/messages', async (req, res) => {
@@ -552,17 +560,17 @@ app.get('/chats/:chatId/messages', async (req, res) => {
 
 // Ruta para crear un nuevo chat
 app.post('/chats/create', async (req, res) => {
-    const { user1_id, user2_id } = req.body;
+    const { user1_id, user2_id, card_id } = req.body;
 
-    if (!user1_id || !user2_id) {
+    if (!user1_id || !user2_id || !card_id) {
         return res.status(400).json({ message: 'Faltan datos para crear el chat.' });
     }
 
     try {
         // Crear un nuevo chat en la base de datos
         const [newChat] = await pool.query(
-            'INSERT INTO chats (user1_id, user2_id) VALUES (?, ?)',
-            [user1_id, user2_id]
+            'INSERT INTO chats (user1_id, user2_id, card_id) VALUES (?, ?, ?)',
+            [user1_id, user2_id, card_id]
         );
 
         res.status(201).json({ chatId: newChat.insertId });

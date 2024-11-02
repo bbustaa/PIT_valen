@@ -26,6 +26,7 @@ interface ChatItem {
   lastMessage?: string;
   lastMessageTime?: string;
   unread?: boolean;
+  card_title: string;
 }
 
 const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) => {
@@ -112,18 +113,18 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
             chats.map((chat) => (
               <IonItem key={chat.id} onClick={() => openChatModal(chat)}>
                 <IonLabel>
-                  <p>{`Chat con ${chat.user1_id === currentUserId ? chat.user2_id : chat.user1_id}`}</p>
-                  {chat.lastMessage && (
-                    <>
-                      <p className="last-message">{chat.lastMessage}</p>
-                      {chat.lastMessageTime && (
-                        <small>{new Date(chat.lastMessageTime).toLocaleTimeString()}</small>
-                      )}
-                    </>
-                  )}
+                    <p>{`Chat sobre: ${chat.card_title}`}</p>
+                    {chat.lastMessage && (
+                        <>
+                            <p className="last-message">{chat.lastMessage}</p>
+                            {chat.lastMessageTime && (
+                                <small>{new Date(chat.lastMessageTime).toLocaleTimeString()}</small>
+                            )}
+                        </>
+                    )}
                 </IonLabel>
                 {chat.unread && <span className="unread-indicator">Nuevo</span>}
-              </IonItem>
+            </IonItem>
             ))
           ) : (
             <IonItem>

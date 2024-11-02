@@ -190,7 +190,7 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
         {/* Modal para mostrar el buzón de mensajes */}
         <IonModal isOpen={showMessagesInbox} onDidDismiss={() => setShowMessagesInbox(false)}>
           <IonContent>
-            <MessagesInbox currentUserId={currentUserId} socket={socket} />
+            <MessagesInbox currentUserId={currentUserId} socket={socket} onClose={() => setShowMessagesInbox(false)} />
           </IonContent>
         </IonModal>
 

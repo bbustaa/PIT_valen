@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   IonContent,
   IonHeader,
@@ -19,6 +19,7 @@ import Chat from '../components/Chat';
 interface MessagesInboxProps {
   currentUserId: string;
   socket: any; // Socket instance
+  onClose: () => void; // Añadir onClose para cerrar el modal desde el padre
 }
 
 interface ChatItem {
@@ -32,11 +33,10 @@ interface ChatItem {
   card_title: string;
 }
 
-const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) => {
+const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, onClose }) => {
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [selectedChat, setSelectedChat] = useState<ChatItem | null>(null);
   const [showChatModal, setShowChatModal] = useState<boolean>(false);
-  const messagesModalRef = useRef<HTMLIonModalElement | null>(null); // Ref para el modal
 
   useEffect(() => {
     // Fetch chats when the component mounts
@@ -104,19 +104,13 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
     setSelectedChat(null);
   };
 
-  const closeMessagesModal = () => {
-    if (messagesModalRef.current) {
-      messagesModalRef.current.dismiss(); // Usar el ref para cerrar el modal explícitamente
-    }
-  };
-
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
           <IonTitle>Buzón de Mensajes</IonTitle>
           <IonButtons slot="end">
-            <IonButton onClick={closeMessagesModal}>
+            <IonButton onClick={onClose}>
               <IonIcon icon={exit} />
               Salir
             </IonButton>
@@ -151,7 +145,7 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket }) 
 
         {/* Modal to display the chat */}
         {selectedChat && (
-          <IonModal ref={messagesModalRef} isOpen={showChatModal} onDidDismiss={closeChatModal}>
+          <IonModal isOpen={showChatModal} onDidDismiss={closeChatModal}>
             <IonContent>
               <IonButton onClick={closeChatModal}>Cerrar Chat</IonButton>
               <Chat

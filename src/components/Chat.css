@@ -1,15 +1,18 @@
 .message-item {
   display: flex;
-  flex-direction: column;
+  align-items: center; /* Alinea los elementos en la misma línea */
+  justify-content: space-between; /* Coloca el mensaje y la hora en los lados opuestos */
   max-width: 70%;
   margin: 10px 15px;
 }
 
 .message-item.other {
-  align-items: flex-start; /* Mensajes del otro usuario a la izquierda */
+  flex-direction: row; /* Mantener la dirección estándar para mensajes del otro usuario */
+  align-self: flex-start; /* Alinear al lado izquierdo */
 }
 
 .message-item.me {
+  flex-direction: row-reverse; /* Para que el mensaje esté a la derecha y la hora a la izquierda */
   margin-left: auto; /* Mueve los mensajes hacia la derecha */
   text-align: right;
   justify-content: flex-end;
@@ -32,13 +35,7 @@
 
 .message-timestamp {
   font-size: 0.8em;
-  margin-top: 5px;
-}
-
-.message-item.me .message-timestamp {
-  align-self: flex-start; /* Alinear a la izquierda la hora de los mensajes del usuario actual */
-}
-
-.message-item.other .message-timestamp {
-  align-self: flex-end; /* Alinear a la derecha la hora de los mensajes del otro usuario */
+  margin: 0 10px; /* Espacio entre la hora y el mensaje */
+  white-space: nowrap; /* Evitar que la hora se desborde a otra línea */
+  color: #555; /* Color de la hora */
 }

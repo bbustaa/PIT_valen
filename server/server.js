@@ -423,22 +423,40 @@ io.on('connection', (socket) => {
     console.log('Usuario conectado:', socket.id);
 
     // Evento para unirse a una sala de chat
-    socket.on('join_chat', async (chatId) => {
+    socket.on('join_chat', async ({ chatId, userId }) => {
         socket.join(chatId);
         console.log(`Usuario ${socket.id} se unió al chat ${chatId}`);
 
-        // Resetear el indicador de mensajes no leídos al abrir el chat
-        await pool.query(`
-            UPDATE chats
-            SET has_unread = FALSE
-            WHERE id = ?
-        `, [chatId]);
+        // Resetear el indicador de mensajes no leídos para el usuario que se unió al chat
+        try {
+            const chat = await pool.query('SELECT * FROM chats WHERE id = ?', [chatId]);
+            if (chat[0].length > 0) {
+                if (chat[0][0].user1_id === userId) {
+                    await pool.query(`
+                        UPDATE chats
+                        SET has_unread_user1 = FALSE
+                        WHERE id = ?
+                    `, [chatId]);
+                } else if (chat[0][0].user2_id === userId) {
+                    await pool.query(`
+                        UPDATE chats
+                        SET has_unread_user2 = FALSE
+                        WHERE id = ?
+                    `, [chatId]);
+                }
+
+                // Notificar a los clientes que los mensajes han sido leídos
+                io.to(chatId.toString()).emit('messages_read', { chatId, userId });
+            }
+        } catch (error) {
+            console.error('Error al actualizar mensajes no leídos:', error);
+        }
     });
 
     // Evento para manejar el envío de mensajes
     socket.on('send_message', async (data) => {
         const { chatId, sender_id, content, receiver_id } = data;
-    
+
         try {
             // Insertar el mensaje en la base de datos
             const timestamp = new Date().toISOString();
@@ -447,15 +465,26 @@ io.on('connection', (socket) => {
                 VALUES (?, ?, ?, ?)
             `;
             const [result] = await pool.query(insertMessageQuery, [chatId, sender_id, content, timestamp]);
-    
+
             if (result.affectedRows > 0) {
-                // Establecer has_unread a TRUE si el receptor no tiene el chat abierto
-                await pool.query(`
-                    UPDATE chats
-                    SET has_unread = TRUE
-                    WHERE id = ? AND (user1_id = ? OR user2_id = ?)
-                `, [chatId, receiver_id, receiver_id]);
-    
+                // Actualizar los mensajes no leídos para el receptor
+                const chat = await pool.query('SELECT * FROM chats WHERE id = ?', [chatId]);
+                if (chat[0].length > 0) {
+                    if (chat[0][0].user1_id === receiver_id) {
+                        await pool.query(`
+                            UPDATE chats
+                            SET has_unread_user1 = TRUE
+                            WHERE id = ?
+                        `, [chatId]);
+                    } else if (chat[0][0].user2_id === receiver_id) {
+                        await pool.query(`
+                            UPDATE chats
+                            SET has_unread_user2 = TRUE
+                            WHERE id = ?
+                        `, [chatId]);
+                    }
+                }
+
                 // Emitir el mensaje a todos los usuarios en la sala del chat
                 io.to(chatId.toString()).emit('receive_message', {
                     id: result.insertId,
@@ -485,7 +514,6 @@ io.on('connection', (socket) => {
     });
 });
 
-
 // Ruta para obtener todos los chats en los que el usuario actual esté involucrado
 app.get('/chats/:userId', async (req, res) => {
     const { userId } = req.params;
@@ -493,11 +521,16 @@ app.get('/chats/:userId', async (req, res) => {
     try {
         console.log('Recibida solicitud para obtener chats del usuario:', userId);
         const [chats] = await pool.query(
-            `SELECT c.*, t.title as card_title 
-            FROM chats c 
+            `SELECT c.*, t.title as card_title, 
+            CASE 
+                WHEN c.user1_id = ? THEN c.has_unread_user1
+                WHEN c.user2_id = ? THEN c.has_unread_user2
+                ELSE 0
+            END AS has_unread
+            FROM chats c
             JOIN tarjetas t ON c.card_id = t.id 
             WHERE user1_id = ? OR user2_id = ?`,
-            [userId, userId]
+            [userId, userId, userId, userId]
         );
 
         if (chats.length > 0) {
@@ -533,7 +566,6 @@ app.get('/chats/find/:userId/:receiverId/:cardId', async (req, res) => {
         res.status(500).send('Error al buscar chat');
     }
 });
- 
 
 // Ruta para obtener todos los mensajes de un chat específico
 app.get('/chats/:chatId/messages', async (req, res) => {

@@ -13,13 +13,13 @@ import {
   IonLabel,
   IonModal,
 } from '@ionic/react';
-import { exit } from 'ionicons/icons'; // Importar el ícono de salida
+import { exit } from 'ionicons/icons';
 import Chat from '../components/Chat';
 
 interface MessagesInboxProps {
   currentUserId: string;
-  socket: any; // Socket instance
-  onClose: () => void; // Añadir onClose para cerrar el modal desde el padre
+  socket: any;
+  onClose: () => void;
 }
 
 interface ChatItem {
@@ -31,7 +31,7 @@ interface ChatItem {
   lastMessageTime?: string;
   unread?: boolean;
   card_title: string;
-  has_unread?: boolean; // Añadir esta línea
+  has_unread?: number;
 }
 
 const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, onClose }) => {
@@ -46,11 +46,9 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, on
         const response = await fetch(`http://localhost:5000/chats/${currentUserId}`);
         if (response.ok) {
           const data: ChatItem[] = await response.json();
-          const userChats = data.filter(
-            (chat) => chat.user1_id === currentUserId || chat.user2_id === currentUserId
-          ).map(chat => ({
+          const userChats = data.map((chat) => ({
             ...chat,
-            unread: chat.has_unread  // Asignar el valor de has_unread a unread
+            unread: chat.has_unread === 1, // Convertir a booleano
           }));
           setChats(userChats);
         } else {
@@ -66,8 +64,8 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, on
     }
   }, [currentUserId]);
 
+  // Listener para recibir mensajes
   useEffect(() => {
-    // Socket listener to update chats with new messages
     const handleReceiveMessage = (message: { chatId: number; content: string; sender_id: string; timestamp: string }) => {
       setChats((prevChats) =>
         prevChats.map((chat) =>
@@ -76,7 +74,7 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, on
                 ...chat,
                 lastMessage: message.content,
                 lastMessageTime: message.timestamp,
-                unread: chat.id !== selectedChat?.id, // Mark as unread if not currently selected
+                unread: chat.id !== selectedChat?.id, // Marcar como no leído si no está seleccionado
               }
             : chat
         )
@@ -94,10 +92,41 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, on
     };
   }, [socket, selectedChat]);
 
+  // Listener para mensajes leídos
+  useEffect(() => {
+    const handleMessagesRead = (data: { chatId: number; userId: string }) => {
+      if (data.userId === currentUserId) {
+        setChats((prevChats) =>
+          prevChats.map((chat) =>
+            chat.id === data.chatId ? { ...chat, unread: false } : chat
+          )
+        );
+      }
+    };
+
+    if (socket) {
+      socket.on('messages_read', handleMessagesRead);
+    }
+
+    return () => {
+      if (socket) {
+        socket.off('messages_read', handleMessagesRead);
+      }
+    };
+  }, [socket, currentUserId]);
+
+  // Cuando el chat se abre, marcar como leído
   const openChatModal = (chat: ChatItem) => {
     setSelectedChat(chat);
     setShowChatModal(true);
-    socket.emit('join_chat', chat.id.toString());
+    socket.emit('join_chat', { chatId: chat.id.toString(), userId: currentUserId });
+
+    // Marcar como leído en el estado local
+    setChats((prevChats) =>
+      prevChats.map((c) =>
+        c.id === chat.id ? { ...c, unread: false } : c
+      )
+    );
   };
 
   const closeChatModal = () => {
@@ -127,7 +156,9 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, on
             chats.map((chat) => (
               <IonItem key={chat.id} onClick={() => openChatModal(chat)}>
                 <IonLabel>
-                  <p>{`Chat sobre: ${chat.card_title}`}</p>
+                  <p style={{ fontWeight: chat.unread ? 'bold' : 'normal' }}>
+                    {`Chat sobre: ${chat.card_title}`}
+                  </p>
                   {chat.lastMessage && (
                     <>
                       <p className="last-message">{chat.lastMessage}</p>
@@ -137,7 +168,9 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, on
                     </>
                   )}
                 </IonLabel>
-                {chat.unread && <span className="unread-indicator">Nuevo</span>}
+                {chat.unread && (
+                  <span className="unread-indicator"></span>
+                )}
               </IonItem>
             ))
           ) : (
@@ -147,7 +180,7 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, on
           )}
         </IonList>
 
-        {/* Modal to display the chat */}
+        {/* Modal para mostrar el chat */}
         {selectedChat && (
           <IonModal isOpen={showChatModal} onDidDismiss={closeChatModal}>
             <IonContent>
@@ -157,7 +190,7 @@ const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, on
                 currentUserId={currentUserId}
                 socket={socket}
                 receiverId={selectedChat.user1_id === currentUserId ? selectedChat.user2_id : selectedChat.user1_id}
-                onExit={closeChatModal} // Añadir la propiedad onExit
+                onExit={closeChatModal}
               />
             </IonContent>
           </IonModal>

@@ -45,7 +45,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId, socket, 
 
   useEffect(() => {
     // Unirse al chat
-    socket.emit('join_chat', chatId.toString());
+    socket.emit('join_chat', { chatId: chatId.toString(), userId: currentUserId });
 
     // Recuperar los mensajes del chat cuando el componente se monta
     const fetchMessages = async () => {

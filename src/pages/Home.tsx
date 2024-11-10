@@ -107,16 +107,24 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
       }
     };
 
+    const handleUpdateUnreadStatus = (data: { chatId: number; userId: string }) => {
+      if (data.userId === currentUserId) {
+          setHasUnreadMessages(true);
+      }
+  };
+
     if (socket) {
       socket.on('receive_message', handleReceiveMessage);
+        socket.on('update_unread_status', handleUpdateUnreadStatus);
     }
 
     return () => {
       if (socket) {
-        socket.off('receive_message', handleReceiveMessage);
+          socket.off('receive_message', handleReceiveMessage);
+          socket.off('update_unread_status', handleUpdateUnreadStatus);
       }
-    };
-  }, [socket, chatId]);
+   };
+  }, [socket, chatId, currentUserId]);
 
   const handleAddCard = async (title: string, subtitle: string, content: string, imageUrl: string) => {
     try {
@@ -170,7 +178,7 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
           setChatId(data.chatId);
         } else {
           // Si no existe, creamos un nuevo chat en el backend con el ID de la tarjeta
-          const createChatResponse = await fetch(`http://localhost:5000/chats/create`, {
+          const createChatResponse = await fetch('http://localhost:5000/chats/create', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -243,7 +251,12 @@ const Home: React.FC<HomeProps> = ({ onLogout, isAuthenticated }) => {
         {/* Modal para mostrar el buzón de mensajes */}
         <IonModal isOpen={showMessagesInbox} onDidDismiss={() => setShowMessagesInbox(false)}>
           <IonContent>
-            <MessagesInbox currentUserId={currentUserId} socket={socket} onClose={() => setShowMessagesInbox(false)} />
+            <MessagesInbox 
+              currentUserId={currentUserId} 
+              socket={socket} 
+              onClose={() => setShowMessagesInbox(false)} 
+              setHasUnreadMessages={setHasUnreadMessages} // Pasar como propiedad
+            />
           </IonContent>
         </IonModal>
 

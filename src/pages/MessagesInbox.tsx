@@ -20,6 +20,7 @@ interface MessagesInboxProps {
   currentUserId: string;
   socket: any;
   onClose: () => void;
+  setHasUnreadMessages: (hasUnread: boolean) => void;
 }
 
 interface ChatItem {
@@ -34,115 +35,73 @@ interface ChatItem {
   has_unread?: number;
 }
 
-const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, onClose }) => {
+const MessagesInbox: React.FC<MessagesInboxProps> = ({ currentUserId, socket, onClose, setHasUnreadMessages }) => {
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [selectedChat, setSelectedChat] = useState<ChatItem | null>(null);
   const [showChatModal, setShowChatModal] = useState<boolean>(false);
-  const [trigger, setTrigger] = useState(0);
 
   useEffect(() => {
-    // Fetch chats when the component mounts
-    const fetchChats = async () => {
-      try {
-        const response = await fetch(`http://localhost:5000/chats/${currentUserId}`);
-        if (response.ok) {
-          const data: ChatItem[] = await response.json();
-          const userChats = data.map((chat) => ({
-            ...chat,
-            unread: chat.has_unread === 1, // Convertir a booleano
-          }));
-          setChats(userChats);
-        } else {
-          console.error('Error: No se encontraron chats para el usuario actual.');
-        }
-      } catch (error) {
-        console.error('Error al obtener los chats:', error);
-      }
-    };
-
     if (currentUserId) {
+      // Unirse a una sala única para el usuario
+      socket.emit('join_user_room', currentUserId);
+      console.log(`Usuario ${currentUserId} se unió a la sala de usuario.`);
+
+      // Fetch inicial de los chats
       fetchChats();
-    }
-  }, [currentUserId]);
 
-  // Listener para recibir mensajes
-  useEffect(() => {
-    const handleReceiveMessage = (message: { chatId: number; content: string; sender_id: string; timestamp: string }) => {
-      setChats((prevChats) =>
-        prevChats.map((chat) =>
-          chat.id === message.chatId
-            ? {
-                ...chat,
-                lastMessage: message.content,
-                lastMessageTime: message.timestamp,
-                unread: chat.id !== selectedChat?.id, // Marcar como no leído si no está seleccionado
-              }
-            : chat
-        )
-      );
-      fetchChats(); // Asegurarse de actualizar los chats después de recibir un mensaje
-    };
-
-    if (socket) {
-      socket.on('receive_message', handleReceiveMessage);
-    }
-
-    return () => {
-      if (socket) {
-        socket.off('receive_message', handleReceiveMessage);
-      }
-    };
-  }, [socket, selectedChat]);
-
-
-  // Listener para mensajes leídos
-  useEffect(() => {
-    const handleMessagesRead = (data: { chatId: number; userId: string }) => {
-      if (data.userId === currentUserId) {
+      // Manejar la recepción de nuevos mensajes
+      socket.on('receive_message', (message: { chatId: number; content: string; sender_id: string; timestamp: string }) => {
+        console.log('Mensaje recibido del socket:', message);
         setChats((prevChats) =>
           prevChats.map((chat) =>
-            chat.id === data.chatId ? { ...chat, unread: false } : chat
+            chat.id === message.chatId
+              ? {
+                  ...chat,
+                  lastMessage: message.content,
+                  lastMessageTime: message.timestamp,
+                  unread: chat.id !== selectedChat?.id,
+                }
+              : chat
           )
         );
-      }
-    };
+      });
 
-    if (socket) {
-      socket.on('messages_read', handleMessagesRead);
+      // Manejar actualización de mensajes no leídos
+      socket.on('update_unread_status', (data: { chatId: number; receiver_id: string }) => {
+        if (data.receiver_id === currentUserId) {
+          console.log('Actualización de estado de mensajes no leídos recibida:', data);
+          setChats((prevChats) =>
+            prevChats.map((chat) =>
+              chat.id === data.chatId ? { ...chat, unread: true } : chat
+            )
+          );
+          setHasUnreadMessages(true); // Actualizar el estado global de mensajes no leídos
+        }
+      });
+      
+      socket.on('messages_read', (data: { chatId: number; userId: string }) => {
+        if (data.userId === currentUserId) {
+          console.log('Marcando mensajes como leídos:', data);
+          setChats((prevChats) =>
+            prevChats.map((chat) =>
+              chat.id === data.chatId ? { ...chat, unread: false } : chat
+            )
+          );
+          setHasUnreadMessages(false); // Actualizar el estado global de mensajes leídos
+        }
+      });
+      
+
+      return () => {
+        // Salir de la sala del usuario al desmontar
+        socket.emit('leave_user_room', currentUserId);
+        socket.off('receive_message');
+        socket.off('update_unread_status');
+        socket.off('messages_read');
+      };
     }
+  }, [currentUserId, selectedChat, socket]);
 
-    return () => {
-      if (socket) {
-        socket.off('messages_read', handleMessagesRead);
-      }
-    };
-  }, [socket, currentUserId]);
-
-  // Listener para mensajes no leídos
-  useEffect(() => {
-    const handleUpdateUnreadStatus = (data: { chatId: number; receiver_id: string }) => {
-      if (data.receiver_id === currentUserId) {
-        setChats((prevChats) =>
-          prevChats.map((chat) =>
-            chat.id === data.chatId ? { ...chat, unread: true } : chat
-          )
-        );
-        setTrigger((prev) => prev + 1); // Forzar redibujado
-      }
-    };
-  
-    if (socket) {
-      socket.on('update_unread_status', handleUpdateUnreadStatus);
-    }
-  
-    return () => {
-      if (socket) {
-        socket.off('update_unread_status', handleUpdateUnreadStatus);
-      }
-    };
-  }, [socket, currentUserId]);  
-
-  
   // Fetch de chats para obtener la lista actualizada
   const fetchChats = async () => {
     try {

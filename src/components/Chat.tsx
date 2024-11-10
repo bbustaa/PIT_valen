@@ -96,6 +96,10 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId, socket, 
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      // Emitir un evento al servidor para marcar los mensajes como leídos
+      if (messages.length > 0) {
+        socket.emit('read_message', { chatId, userId: currentUserId });
+      }
     }
   }, [messages]);
 
@@ -119,6 +123,25 @@ const Chat: React.FC<ChatProps> = ({ chatId, currentUserId, receiverId, socket, 
       });
     }
   };
+
+  // Manejar la actualización de mensajes leídos
+  useEffect(() => {
+    const handleMessagesRead = (data: { chatId: string; userId: string }) => {
+      if (data.chatId === chatId && data.userId !== currentUserId) {
+        console.log('Mensajes leídos por el otro usuario:', data);
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) => ({ ...msg, read: true }))
+        );
+      }
+    };
+  
+    socket.on('messages_read', handleMessagesRead);
+  
+    // Limpiar los eventos al desmontar el componente
+    return () => {
+      socket.off('messages_read', handleMessagesRead);
+    };
+  }, [chatId, currentUserId, socket]);
 
   return (
     <IonPage>

@@ -487,6 +487,22 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Evento para marcar los mensajes como leídos
+    socket.on('read_message', async ({ chatId, userId }) => {
+        try {
+          // Aquí se actualizarían los mensajes como leídos en la base de datos.
+          await pool.query(
+            'UPDATE mensajes SET read_status = TRUE WHERE chat_id = ? AND sender_id != ?',
+            [chatId, userId]
+          );
+      
+          // Emitir el evento para indicar que los mensajes fueron leídos
+          io.to(chatId.toString()).emit('messages_read', { chatId, userId });
+        } catch (error) {
+          console.error('Error al marcar los mensajes como leídos:', error);
+        }
+    });      
+
     // Evento para dejar una sala de chat
     socket.on('leave_chat', (chatId) => {
         socket.leave(chatId);
@@ -520,7 +536,7 @@ app.get('/chats/:userId', async (req, res) => {
         if (chats.length > 0) {
             res.status(200).json(chats);
         } else {
-            res.status(404).json({ message: 'No se encontraron chats para este usuario.' });
+            res.status(200).json({ message: 'Mira las tarjetas y ve qué favores te interesan!' });
         }
     } catch (error) {
         console.error('Error al obtener los chats:', error);
@@ -543,7 +559,7 @@ app.get('/chats/find/:userId/:receiverId/:cardId', async (req, res) => {
         if (chats.length > 0) {
             res.status(200).json({ chatId: chats[0].id });
         } else {
-            res.status(404).json({ message: 'No se encontró un chat existente sobre esta tarjeta.' });
+            res.status(200).json({ message: 'Inicia un chat!' });
         }
     } catch (err) {
         console.error('Error al buscar chat:', err);
